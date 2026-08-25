@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Build output (tsc for api/shared, vite build for web)
+dist/
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Environment variables (Supabase keys land here starting W1)
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+
+# Logs
+*.log
+
+# Test coverage (if/when enabled)
+coverage/
