@@ -12,7 +12,11 @@
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "npm run migrate -w @tallyup/api",
+    "db:seed": "npm run seed -w @tallyup/api"
   },
   "devDependencies": {
     "typescript": "^5.9.3",
