@@ -1,7 +1,6 @@
 import type { Kysely } from 'kysely';
 import { sql } from 'kysely';
 import { describe, expect, test } from '../test-support/integration-test.js';
-import { withTestTransaction } from '../test-support/db.js';
 import type { Database } from './types.js';
 
 async function insertBusiness(db: Kysely<Database>, overrides: Partial<{ slug: string }> = {}) {
@@ -41,17 +40,10 @@ async function insertCustomer(
     .executeTakeFirstOrThrow();
 }
 
-// Two-business fixtures don't fit the transaction-scoped `db` fixture cleanly
-// (both businesses need to exist within the same rolled-back transaction),
-// so these tests reach for the shared transaction helper directly.
-async function withTwoBusinesses(
-  fn: (db: Kysely<Database>, businessA: { id: string }, businessB: { id: string }) => Promise<void>,
-): Promise<void> {
-  await withTestTransaction(async (db) => {
-    const businessA = await insertBusiness(db, { slug: `a-${crypto.randomUUID()}` });
-    const businessB = await insertBusiness(db, { slug: `b-${crypto.randomUUID()}` });
-    await fn(db, businessA, businessB);
-  });
+async function twoBusinesses(db: Kysely<Database>) {
+  const businessA = await insertBusiness(db, { slug: `a-${crypto.randomUUID()}` });
+  const businessB = await insertBusiness(db, { slug: `b-${crypto.randomUUID()}` });
+  return { businessA, businessB };
 }
 
 describe('migrations', () => {
@@ -95,11 +87,10 @@ describe('customers', () => {
     );
   });
 
-  test('different businesses can share the same phone', async () => {
-    await withTwoBusinesses(async (db, businessA, businessB) => {
-      await insertCustomer(db, businessA.id, { phone: '+15555550102' });
-      await expect(insertCustomer(db, businessB.id, { phone: '+15555550102' })).resolves.toBeDefined();
-    });
+  test('different businesses can share the same phone', async ({ db }) => {
+    const { businessA, businessB } = await twoBusinesses(db);
+    await insertCustomer(db, businessA.id, { phone: '+15555550102' });
+    await expect(insertCustomer(db, businessB.id, { phone: '+15555550102' })).resolves.toBeDefined();
   });
 
   test('points cannot go negative', async ({ db }) => {
@@ -127,32 +118,30 @@ describe('pending_checkins', () => {
 });
 
 describe('business_id scoping (composite FKs)', () => {
-  test('a visit cannot reference a customer from a different business', async () => {
-    await withTwoBusinesses(async (db, businessA, businessB) => {
-      const customerA = await insertCustomer(db, businessA.id, { phone: '+15555550104' });
-      const staffB = await insertStaff(db, businessB.id);
+  test('a visit cannot reference a customer from a different business', async ({ db }) => {
+    const { businessA, businessB } = await twoBusinesses(db);
+    const customerA = await insertCustomer(db, businessA.id, { phone: '+15555550104' });
+    const staffB = await insertStaff(db, businessB.id);
 
-      await expect(
-        db
-          .insertInto('visits')
-          .values({ business_id: businessB.id, customer_id: customerA.id, confirmed_by: staffB.id })
-          .execute(),
-      ).rejects.toThrow(/violates foreign key constraint/);
-    });
+    await expect(
+      db
+        .insertInto('visits')
+        .values({ business_id: businessB.id, customer_id: customerA.id, confirmed_by: staffB.id })
+        .execute(),
+    ).rejects.toThrow(/violates foreign key constraint/);
   });
 
-  test('a visit cannot reference staff from a different business', async () => {
-    await withTwoBusinesses(async (db, businessA, businessB) => {
-      const customerB = await insertCustomer(db, businessB.id, { phone: '+15555550105' });
-      const staffA = await insertStaff(db, businessA.id);
+  test('a visit cannot reference staff from a different business', async ({ db }) => {
+    const { businessA, businessB } = await twoBusinesses(db);
+    const customerB = await insertCustomer(db, businessB.id, { phone: '+15555550105' });
+    const staffA = await insertStaff(db, businessA.id);
 
-      await expect(
-        db
-          .insertInto('visits')
-          .values({ business_id: businessB.id, customer_id: customerB.id, confirmed_by: staffA.id })
-          .execute(),
-      ).rejects.toThrow(/violates foreign key constraint/);
-    });
+    await expect(
+      db
+        .insertInto('visits')
+        .values({ business_id: businessB.id, customer_id: customerB.id, confirmed_by: staffA.id })
+        .execute(),
+    ).rejects.toThrow(/violates foreign key constraint/);
   });
 
   test('a same-business visit succeeds', async ({ db }) => {
