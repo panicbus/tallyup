@@ -4,13 +4,13 @@ import { buildApp } from '../app.js';
 import { createKyselyCheckInPort } from '../data-access/kysely-check-in-port.js';
 import type { Database } from '../data-access/types.js';
 
-async function seedBusinessAndStaff(db: Kysely<Database>) {
+async function seedBusinessAndStaff(db: Kysely<Database>, rewardThreshold = 10) {
   const business = await db
     .insertInto('businesses')
     .values({
       name: 'E2E Shop',
       slug: `e2e-shop-${crypto.randomUUID()}`,
-      reward_threshold: 10,
+      reward_threshold: rewardThreshold,
       reward_description: 'Free item',
     })
     .returningAll()
@@ -52,5 +52,39 @@ describe('check-in fraud gate, end to end via HTTP', () => {
       payload: { confirmedBy: staff.id },
     });
     expect(secondConfirm.statusCode).toBe(404);
+  });
+
+  test('a redemption can only ever be spent once', async ({ realDb }) => {
+    const { business, staff } = await seedBusinessAndStaff(realDb, 1);
+    const app = buildApp({ checkInPort: createKyselyCheckInPort(realDb) }, { logger: false });
+
+    const createResponse = await app.inject({
+      method: 'POST',
+      url: `/businesses/${business.slug}/pending-checkins`,
+      payload: { phone: '555-999-0002' },
+    });
+    const { id: pendingCheckinId } = createResponse.json();
+
+    const confirmResponse = await app.inject({
+      method: 'POST',
+      url: `/pending-checkins/${pendingCheckinId}/confirm`,
+      payload: { confirmedBy: staff.id },
+    });
+    const { customer } = confirmResponse.json();
+
+    const firstRedeem = await app.inject({
+      method: 'POST',
+      url: `/customers/${customer.id}/redeem`,
+      payload: { confirmedBy: staff.id },
+    });
+    expect(firstRedeem.statusCode).toBe(200);
+    expect(firstRedeem.json()).toMatchObject({ outcome: 'redeemed' });
+
+    const secondRedeem = await app.inject({
+      method: 'POST',
+      url: `/customers/${customer.id}/redeem`,
+      payload: { confirmedBy: staff.id },
+    });
+    expect(secondRedeem.statusCode).toBe(409);
   });
 });

@@ -1,6 +1,6 @@
 import type { Kysely } from 'kysely';
 import type { Database } from './types.js';
-import type { CheckInPort, ConfirmCheckinResult } from './check-in-port.js';
+import type { CheckInPort, ConfirmCheckinResult, RedeemResult } from './check-in-port.js';
 
 const PENDING_CHECKIN_TTL_MS = 20 * 60_000;
 
@@ -73,6 +73,59 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
         return {
           outcome: 'confirmed',
           customer: { id: customer.id, phone: customer.phone, points: customer.points },
+          business: { id: business.id, rewardThreshold: business.reward_threshold },
+        };
+      });
+    },
+
+    async redeem({ customerId, confirmedBy }): Promise<RedeemResult> {
+      return db.transaction().execute(async (trx) => {
+        const customer = await trx
+          .selectFrom('customers')
+          .selectAll()
+          .where('id', '=', customerId)
+          .executeTakeFirst();
+
+        if (!customer) {
+          return { outcome: 'not_eligible' };
+        }
+
+        const business = await trx
+          .selectFrom('businesses')
+          .select(['id', 'reward_threshold'])
+          .where('id', '=', customer.business_id)
+          .executeTakeFirstOrThrow();
+
+        // The fraud gate: this update only succeeds if points are still
+        // >= the threshold read moments ago, in this same transaction. A
+        // concurrent redeem that already spent those points makes this
+        // WHERE clause fail under Postgres's read-committed re-evaluation,
+        // so a double-tap can't double-redeem.
+        const updated = await trx
+          .updateTable('customers')
+          .set((eb) => ({ points: eb('points', '-', business.reward_threshold) }))
+          .where('id', '=', customerId)
+          .where('points', '>=', business.reward_threshold)
+          .returning(['id', 'phone', 'points'])
+          .executeTakeFirst();
+
+        if (!updated) {
+          return { outcome: 'not_eligible' };
+        }
+
+        await trx
+          .insertInto('redemptions')
+          .values({
+            business_id: business.id,
+            customer_id: customerId,
+            confirmed_by: confirmedBy,
+            threshold_applied: business.reward_threshold,
+          })
+          .execute();
+
+        return {
+          outcome: 'redeemed',
+          customer: { id: updated.id, phone: updated.phone, points: updated.points },
           business: { id: business.id, rewardThreshold: business.reward_threshold },
         };
       });

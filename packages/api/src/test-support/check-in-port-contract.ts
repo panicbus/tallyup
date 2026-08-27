@@ -97,5 +97,54 @@ export function runCheckInPortContractTests<Fixtures extends { realDb?: unknown 
 
       expect(await port.findBusinessBySlug(slug)).toEqual({ id: business.id, rewardThreshold: 7 });
     });
+
+    test('redeems exactly at the threshold, applying rollover', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      const customerId = await checkInNTimes(port, business, '+15551230005', 12);
+
+      const result = await port.redeem({ customerId, confirmedBy: business.confirmedBy });
+
+      expect(result).toMatchObject({ outcome: 'redeemed', customer: { points: 2 } });
+    });
+
+    test('returns not_eligible below the threshold', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      const customerId = await checkInNTimes(port, business, '+15551230006', 5);
+
+      const result = await port.redeem({ customerId, confirmedBy: business.confirmedBy });
+
+      expect(result).toEqual({ outcome: 'not_eligible' });
+    });
+
+    test('a second redeem of the same balance fails (the fraud gate)', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      const customerId = await checkInNTimes(port, business, '+15551230007', 10);
+
+      const first = await port.redeem({ customerId, confirmedBy: business.confirmedBy });
+      const second = await port.redeem({ customerId, confirmedBy: business.confirmedBy });
+
+      expect(first.outcome).toBe('redeemed');
+      expect(second).toEqual({ outcome: 'not_eligible' });
+    });
   });
+}
+
+async function checkInNTimes(
+  port: CheckInPort,
+  business: { id: string; confirmedBy: string },
+  phone: string,
+  n: number,
+): Promise<string> {
+  let customerId = '';
+  for (let i = 0; i < n; i++) {
+    const pending = await port.createPendingCheckin({ businessId: business.id, phone });
+    const result = await port.confirmCheckin({ pendingCheckinId: pending.id, confirmedBy: business.confirmedBy });
+    if (result.outcome === 'confirmed') {
+      customerId = result.customer.id;
+    }
+  }
+  return customerId;
 }

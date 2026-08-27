@@ -2,10 +2,12 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { phoneSchema } from '@tallyup/shared';
 import { confirmCheckin } from '../services/check-in.js';
+import { redeem } from '../services/redemption.js';
 import type { AppDependencies } from '../app.js';
 
 const createPendingCheckinBodySchema = z.object({ phone: phoneSchema });
 const confirmBodySchema = z.object({ confirmedBy: z.string().uuid() });
+const redeemBodySchema = z.object({ confirmedBy: z.string().uuid() });
 
 export async function checkInRoutes(app: FastifyInstance, deps: AppDependencies): Promise<void> {
   app.post('/businesses/:slug/pending-checkins', async (request, reply) => {
@@ -42,6 +44,25 @@ export async function checkInRoutes(app: FastifyInstance, deps: AppDependencies)
 
     if (result.outcome === 'not_found') {
       return reply.code(404).send({ error: 'not_found' });
+    }
+
+    return reply.code(200).send(result);
+  });
+
+  app.post('/customers/:id/redeem', async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const parsedBody = redeemBodySchema.safeParse(request.body);
+    if (!parsedBody.success) {
+      return reply.code(400).send({ error: 'invalid_confirmed_by' });
+    }
+
+    const result = await redeem(deps.checkInPort, {
+      customerId: id,
+      confirmedBy: parsedBody.data.confirmedBy,
+    });
+
+    if (result.outcome === 'not_eligible') {
+      return reply.code(409).send({ error: 'not_eligible' });
     }
 
     return reply.code(200).send(result);

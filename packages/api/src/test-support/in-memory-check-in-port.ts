@@ -84,6 +84,31 @@ export function createInMemoryCheckInPort() {
         business: { id: business.id, rewardThreshold: business.rewardThreshold },
       };
     },
+
+    async redeem({ customerId, confirmedBy }) {
+      void confirmedBy; // recorded on a `redemptions` row in the real adapter; nothing to store here
+      const customer = [...customers.values()].find((c) => c.id === customerId);
+      if (!customer) {
+        return { outcome: 'not_eligible' };
+      }
+
+      const business = businesses.get(customer.businessId);
+      if (!business) {
+        throw new Error(`no business seeded for id ${customer.businessId}`);
+      }
+
+      if (customer.points < business.rewardThreshold) {
+        return { outcome: 'not_eligible' };
+      }
+
+      customer.points -= business.rewardThreshold;
+
+      return {
+        outcome: 'redeemed',
+        customer: { id: customer.id, phone: customer.phone, points: customer.points },
+        business: { id: business.id, rewardThreshold: business.rewardThreshold },
+      };
+    },
   };
 
   async function seedBusiness(
