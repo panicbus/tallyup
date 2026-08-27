@@ -37,14 +37,27 @@ async function withTestTransaction<T>(fn: (trx: Kysely<Database>) => Promise<T>)
 }
 
 /**
- * `test` extended with a `db` fixture: a Kysely instance scoped to a
- * transaction that is rolled back after the test, regardless of outcome.
+ * `test` extended with two fixtures:
+ *
+ * - `db`: a Kysely instance scoped to a transaction that is rolled back
+ *   after the test, regardless of outcome. The default choice — use this
+ *   unless the code under test needs `realDb`.
+ * - `realDb`: the real, non-transactional connection. Kysely doesn't
+ *   support nesting `.transaction()` inside an already-open transaction, so
+ *   anything that opens its own transaction (e.g. confirmCheckin's atomic
+ *   port operation) can't run inside `db`'s wrapping transaction — it needs
+ *   `realDb` instead. No auto-rollback: tests using it rely on generating
+ *   unique data (random slugs/phones) rather than cleanup, since the test
+ *   database is disposable.
  */
-export const test = base.extend<{ db: Kysely<Database> }>({
+export const test = base.extend<{ db: Kysely<Database>; realDb: Kysely<Database> }>({
   db: async ({}, use) => {
     await withTestTransaction(async (trx) => {
       await use(trx);
     });
+  },
+  realDb: async ({}, use) => {
+    await use(testDb);
   },
 });
 
