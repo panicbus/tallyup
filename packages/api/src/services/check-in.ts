@@ -1,5 +1,6 @@
 import type { CheckInPort, ConfirmCheckinResult } from '../data-access/check-in-port.js';
 import { isEligibleForRedemption } from './eligibility.js';
+import { maskPhone } from './phone-masking.js';
 
 export type ConfirmCheckinServiceResult =
   | (Extract<ConfirmCheckinResult, { outcome: 'confirmed' }> & { eligibleForRedemption: boolean })
@@ -22,6 +23,22 @@ export async function confirmCheckin(
 
   return {
     ...result,
+    customer: { ...result.customer, phone: maskPhone(result.customer.phone) },
     eligibleForRedemption: isEligibleForRedemption(result.customer.points, result.business.rewardThreshold),
   };
+}
+
+export interface QueuedPendingCheckin {
+  id: string;
+  maskedPhone: string;
+  createdAt: Date;
+}
+
+/** The staff dashboard's polling queue — masked, never the raw port shape. */
+export async function listPendingCheckins(
+  port: Pick<CheckInPort, 'listPendingCheckins'>,
+  businessId: string,
+): Promise<QueuedPendingCheckin[]> {
+  const pendingCheckins = await port.listPendingCheckins(businessId);
+  return pendingCheckins.map((p) => ({ id: p.id, maskedPhone: maskPhone(p.phone), createdAt: p.createdAt }));
 }

@@ -50,6 +50,17 @@ Two separate processes — run each in its own terminal:
     npm run dev -w @tallyup/api      # Fastify on http://localhost:3000 (tsx watch)
     npm run dev -w @tallyup/web      # Vite on http://localhost:5173
 
+`api` allows CORS from `http://localhost:5173` by default (override with the
+`CORS_ORIGIN` env var — W7 deploy points this at the real Vercel URL). `web`
+calls the API at `http://localhost:3000` by default (override with
+`VITE_API_URL` in `packages/web/.env`).
+
+After seeding (`npm run db:seed`), the staff dashboard for the demo business
+is at:
+
+    http://localhost:5173/dashboard/demo-bookstore
+
 ## Status
-W1 (schema & migrations) complete: six tables, business_id-scoped composite
-FKs, seed script. No routes, no auth, no UI logic yet.
+W4 (staff dashboard) complete: polling queue with server-masked phone
+numbers, confirm and redeem actions, a staff picker standing in for staff
+auth (not built until W6). No customer-facing check-in page yet (W5).

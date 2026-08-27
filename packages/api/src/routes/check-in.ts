@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { phoneSchema } from '@tallyup/shared';
-import { confirmCheckin } from '../services/check-in.js';
+import { confirmCheckin, listPendingCheckins } from '../services/check-in.js';
 import { redeem } from '../services/redemption.js';
 import type { AppDependencies } from '../app.js';
 
@@ -28,6 +28,18 @@ export async function checkInRoutes(app: FastifyInstance, deps: AppDependencies)
     });
 
     return reply.code(200).send(pendingCheckin);
+  });
+
+  app.get('/businesses/:slug/pending-checkins', async (request, reply) => {
+    const { slug } = request.params as { slug: string };
+
+    const business = await deps.checkInPort.findBusinessBySlug(slug);
+    if (!business) {
+      return reply.code(404).send({ error: 'business_not_found' });
+    }
+
+    const queue = await listPendingCheckins(deps.checkInPort, business.id);
+    return reply.code(200).send(queue);
   });
 
   app.post('/pending-checkins/:id/confirm', async (request, reply) => {

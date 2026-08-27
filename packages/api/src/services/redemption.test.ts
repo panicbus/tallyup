@@ -23,7 +23,7 @@ describe('redeem', () => {
 
     expect(result).toEqual({
       outcome: 'redeemed',
-      customer: expect.objectContaining({ points: 0 }),
+      customer: { id: expect.any(String), phone: '•••-•••-4567', points: 0 },
       business: { id: business.id, rewardThreshold: 10 },
       eligibleForRedemption: false,
     });

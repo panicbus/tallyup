@@ -11,6 +11,7 @@ interface StoredPendingCheckin {
   id: string;
   businessId: string;
   phone: string;
+  createdAt: Date;
   expiresAt: Date;
 }
 
@@ -46,15 +47,17 @@ export function createInMemoryCheckInPort() {
       const existing = [...pendingCheckins.values()].find(
         (p) => p.businessId === businessId && p.phone === phone,
       );
-      const expiresAt = new Date(Date.now() + PENDING_CHECKIN_TTL_MS);
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + PENDING_CHECKIN_TTL_MS);
 
       if (existing) {
+        existing.createdAt = now;
         existing.expiresAt = expiresAt;
         return { id: existing.id, expiresAt };
       }
 
       const id = randomUUID();
-      pendingCheckins.set(id, { id, businessId, phone, expiresAt });
+      pendingCheckins.set(id, { id, businessId, phone, createdAt: now, expiresAt });
       return { id, expiresAt };
     },
 
@@ -109,6 +112,14 @@ export function createInMemoryCheckInPort() {
         business: { id: business.id, rewardThreshold: business.rewardThreshold },
       };
     },
+
+    async listPendingCheckins(businessId) {
+      const now = Date.now();
+      return [...pendingCheckins.values()]
+        .filter((p) => p.businessId === businessId && p.expiresAt.getTime() > now)
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .map((p) => ({ id: p.id, phone: p.phone, createdAt: p.createdAt }));
+    },
   };
 
   async function seedBusiness(
@@ -129,6 +140,7 @@ export function createInMemoryCheckInPort() {
       id,
       businessId: input.businessId,
       phone: input.phone,
+      createdAt: new Date(Date.now() - PENDING_CHECKIN_TTL_MS - 1000),
       expiresAt: new Date(Date.now() - 1000),
     });
     return id;

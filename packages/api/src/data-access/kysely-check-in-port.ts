@@ -130,5 +130,17 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
         };
       });
     },
+
+    async listPendingCheckins(businessId) {
+      const rows = await db
+        .selectFrom('pending_checkins')
+        .select(['id', 'phone', 'created_at'])
+        .where('business_id', '=', businessId)
+        .where('expires_at', '>', new Date())
+        .orderBy('created_at', 'asc')
+        .execute();
+
+      return rows.map((row) => ({ id: row.id, phone: row.phone, createdAt: new Date(row.created_at) }));
+    },
   };
 }

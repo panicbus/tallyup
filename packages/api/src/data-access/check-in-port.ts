@@ -14,6 +14,12 @@ export interface PendingCheckin {
   expiresAt: Date;
 }
 
+export interface QueuedPendingCheckin {
+  id: string;
+  phone: string;
+  createdAt: Date;
+}
+
 export type ConfirmCheckinResult =
   | { outcome: 'confirmed'; customer: Customer; business: Business }
   | { outcome: 'not_found' };
@@ -38,4 +44,7 @@ export interface CheckInPort {
   createPendingCheckin(input: { businessId: string; phone: string }): Promise<PendingCheckin>;
   confirmCheckin(input: { pendingCheckinId: string; confirmedBy: string }): Promise<ConfirmCheckinResult>;
   redeem(input: { customerId: string; confirmedBy: string }): Promise<RedeemResult>;
+  /** Unexpired pending check-ins, oldest first. Returns raw phone numbers —
+   * masking is a services/ concern, applied before this ever reaches a route. */
+  listPendingCheckins(businessId: string): Promise<QueuedPendingCheckin[]>;
 }

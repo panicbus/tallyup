@@ -1,13 +1,21 @@
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
+import type { CheckInPort } from '../data-access/check-in-port.js';
 import { buildApp } from '../app.js';
+import { createDb } from '../data-access/db.js';
 import { createInMemoryCheckInPort } from '../test-support/in-memory-check-in-port.js';
+
+// Never queried by these tests — Pool connections are lazy, so a bogus
+// connection string is fine for a dependency none of them exercise.
+function buildTestApp(checkInPort: CheckInPort) {
+  return buildApp({ checkInPort, db: createDb('postgres://unused') }, { logger: false });
+}
 
 describe('POST /businesses/:slug/pending-checkins', () => {
   it('creates a pending check-in for a known business', async () => {
     const { port, seedBusiness } = createInMemoryCheckInPort();
     await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
-    const app = buildApp({ checkInPort: port }, { logger: false });
+    const app = buildTestApp(port);
 
     const response = await app.inject({
       method: 'POST',
@@ -22,7 +30,7 @@ describe('POST /businesses/:slug/pending-checkins', () => {
 
   it('rejects an invalid phone number', async () => {
     const { port } = createInMemoryCheckInPort();
-    const app = buildApp({ checkInPort: port }, { logger: false });
+    const app = buildTestApp(port);
 
     const response = await app.inject({
       method: 'POST',
@@ -35,7 +43,7 @@ describe('POST /businesses/:slug/pending-checkins', () => {
 
   it('404s for an unknown business slug', async () => {
     const { port } = createInMemoryCheckInPort();
-    const app = buildApp({ checkInPort: port }, { logger: false });
+    const app = buildTestApp(port);
 
     const response = await app.inject({
       method: 'POST',
@@ -51,7 +59,7 @@ describe('POST /pending-checkins/:id/confirm', () => {
   it('confirms a pending check-in', async () => {
     const { port, seedBusiness } = createInMemoryCheckInPort();
     const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
-    const app = buildApp({ checkInPort: port }, { logger: false });
+    const app = buildTestApp(port);
     const pending = await port.createPendingCheckin({ businessId: business.id, phone: '+15551234567' });
 
     const response = await app.inject({
@@ -66,7 +74,7 @@ describe('POST /pending-checkins/:id/confirm', () => {
 
   it('404s confirming an unknown pending check-in', async () => {
     const { port } = createInMemoryCheckInPort();
-    const app = buildApp({ checkInPort: port }, { logger: false });
+    const app = buildTestApp(port);
 
     const response = await app.inject({
       method: 'POST',
@@ -80,7 +88,7 @@ describe('POST /pending-checkins/:id/confirm', () => {
   it('rejects a non-uuid confirmedBy', async () => {
     const { port, seedBusiness } = createInMemoryCheckInPort();
     const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
-    const app = buildApp({ checkInPort: port }, { logger: false });
+    const app = buildTestApp(port);
     const pending = await port.createPendingCheckin({ businessId: business.id, phone: '+15551234567' });
 
     const response = await app.inject({
@@ -97,7 +105,7 @@ describe('POST /customers/:id/redeem', () => {
   it('redeems for an eligible customer', async () => {
     const { port, seedBusiness } = createInMemoryCheckInPort();
     const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 1 });
-    const app = buildApp({ checkInPort: port }, { logger: false });
+    const app = buildTestApp(port);
     const pending = await port.createPendingCheckin({ businessId: business.id, phone: '+15551234567' });
     const confirmResult = await port.confirmCheckin({ pendingCheckinId: pending.id, confirmedBy: business.confirmedBy });
     if (confirmResult.outcome !== 'confirmed') throw new Error('setup failed');
@@ -115,7 +123,7 @@ describe('POST /customers/:id/redeem', () => {
   it('409s when not eligible', async () => {
     const { port, seedBusiness } = createInMemoryCheckInPort();
     const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
-    const app = buildApp({ checkInPort: port }, { logger: false });
+    const app = buildTestApp(port);
     const pending = await port.createPendingCheckin({ businessId: business.id, phone: '+15551234567' });
     const confirmResult = await port.confirmCheckin({ pendingCheckinId: pending.id, confirmedBy: business.confirmedBy });
     if (confirmResult.outcome !== 'confirmed') throw new Error('setup failed');
@@ -131,7 +139,7 @@ describe('POST /customers/:id/redeem', () => {
 
   it('rejects a non-uuid confirmedBy', async () => {
     const { port } = createInMemoryCheckInPort();
-    const app = buildApp({ checkInPort: port }, { logger: false });
+    const app = buildTestApp(port);
 
     const response = await app.inject({
       method: 'POST',
@@ -140,5 +148,28 @@ describe('POST /customers/:id/redeem', () => {
     });
 
     expect(response.statusCode).toBe(400);
+  });
+});
+
+describe('GET /businesses/:slug/pending-checkins', () => {
+  it('lists the masked queue for a known business', async () => {
+    const { port, seedBusiness } = createInMemoryCheckInPort();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    await port.createPendingCheckin({ businessId: business.id, phone: '+15551234567' });
+    const app = buildTestApp(port);
+
+    const response = await app.inject({ method: 'GET', url: '/businesses/test-shop/pending-checkins' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject([{ maskedPhone: '•••-•••-4567' }]);
+  });
+
+  it('404s for an unknown business slug', async () => {
+    const { port } = createInMemoryCheckInPort();
+    const app = buildTestApp(port);
+
+    const response = await app.inject({ method: 'GET', url: '/businesses/no-such-shop/pending-checkins' });
+
+    expect(response.statusCode).toBe(404);
   });
 });

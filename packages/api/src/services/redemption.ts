@@ -1,5 +1,6 @@
 import type { CheckInPort, RedeemResult } from '../data-access/check-in-port.js';
 import { isEligibleForRedemption } from './eligibility.js';
+import { maskPhone } from './phone-masking.js';
 
 export type RedeemServiceResult =
   | (Extract<RedeemResult, { outcome: 'redeemed' }> & { eligibleForRedemption: boolean })
@@ -23,6 +24,7 @@ export async function redeem(
 
   return {
     ...result,
+    customer: { ...result.customer, phone: maskPhone(result.customer.phone) },
     eligibleForRedemption: isEligibleForRedemption(result.customer.points, result.business.rewardThreshold),
   };
 }

@@ -28,7 +28,7 @@ async function seedBusinessAndStaff(db: Kysely<Database>, rewardThreshold = 10) 
 describe('check-in fraud gate, end to end via HTTP', () => {
   test('a pending check-in can only ever be confirmed once', async ({ realDb }) => {
     const { business, staff } = await seedBusinessAndStaff(realDb);
-    const app = buildApp({ checkInPort: createKyselyCheckInPort(realDb) }, { logger: false });
+    const app = buildApp({ checkInPort: createKyselyCheckInPort(realDb), db: realDb }, { logger: false });
 
     const createResponse = await app.inject({
       method: 'POST',
@@ -56,7 +56,7 @@ describe('check-in fraud gate, end to end via HTTP', () => {
 
   test('a redemption can only ever be spent once', async ({ realDb }) => {
     const { business, staff } = await seedBusinessAndStaff(realDb, 1);
-    const app = buildApp({ checkInPort: createKyselyCheckInPort(realDb) }, { logger: false });
+    const app = buildApp({ checkInPort: createKyselyCheckInPort(realDb), db: realDb }, { logger: false });
 
     const createResponse = await app.inject({
       method: 'POST',

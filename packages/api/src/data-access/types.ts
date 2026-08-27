@@ -17,7 +17,7 @@ export interface BusinessesTable {
   slug: string;
   reward_threshold: number;
   reward_description: string;
-  created_at: Generated<CreatedAt>;
+  created_at: CreatedAt;
 }
 
 export interface StaffTable {
@@ -25,7 +25,7 @@ export interface StaffTable {
   business_id: string;
   email: string;
   role: string;
-  created_at: Generated<CreatedAt>;
+  created_at: CreatedAt;
 }
 
 export interface CustomersTable {
@@ -33,14 +33,14 @@ export interface CustomersTable {
   business_id: string;
   phone: string;
   points: Generated<number>;
-  created_at: Generated<CreatedAt>;
+  created_at: CreatedAt;
 }
 
 export interface PendingCheckinsTable {
   id: Generated<string>;
   business_id: string;
   phone: string;
-  created_at: Generated<CreatedAt>;
+  created_at: CreatedAt;
   expires_at: Date | string;
 }
 
@@ -49,7 +49,7 @@ export interface VisitsTable {
   business_id: string;
   customer_id: string;
   confirmed_by: string;
-  created_at: Generated<CreatedAt>;
+  created_at: CreatedAt;
 }
 
 export interface RedemptionsTable {
@@ -58,5 +58,5 @@ export interface RedemptionsTable {
   customer_id: string;
   confirmed_by: string;
   threshold_applied: number;
-  created_at: Generated<CreatedAt>;
+  created_at: CreatedAt;
 }

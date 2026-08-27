@@ -18,6 +18,9 @@ dist/
 .claude/
 .DS_Store
 
+# Playwright MCP browser-testing artifacts (screenshots, snapshots, console logs)
+.playwright-mcp/
+
 # Logs
 *.log
 

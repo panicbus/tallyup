@@ -129,6 +129,50 @@ export function runCheckInPortContractTests<Fixtures extends { realDb?: unknown 
       expect(first.outcome).toBe('redeemed');
       expect(second).toEqual({ outcome: 'not_eligible' });
     });
+
+    test('lists unexpired pending check-ins oldest first', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+
+      const first = await port.createPendingCheckin({ businessId: business.id, phone: '+15551230008' });
+      const second = await port.createPendingCheckin({ businessId: business.id, phone: '+15551230009' });
+
+      const queue = await port.listPendingCheckins(business.id);
+
+      expect(queue.map((q) => q.id)).toEqual([first.id, second.id]);
+    });
+
+    test('excludes an expired pending check-in from the queue', async ({ realDb }) => {
+      const { port, seedBusiness, seedExpiredPendingCheckin } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      await seedExpiredPendingCheckin({ businessId: business.id, phone: '+15551230010' });
+
+      const queue = await port.listPendingCheckins(business.id);
+
+      expect(queue).toEqual([]);
+    });
+
+    test('excludes a confirmed pending check-in from the queue', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      const pending = await port.createPendingCheckin({ businessId: business.id, phone: '+15551230011' });
+      await port.confirmCheckin({ pendingCheckinId: pending.id, confirmedBy: business.confirmedBy });
+
+      const queue = await port.listPendingCheckins(business.id);
+
+      expect(queue).toEqual([]);
+    });
+
+    test('excludes pending check-ins belonging to a different business', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const businessA = await seedBusiness({ slug: `contract-a-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      const businessB = await seedBusiness({ slug: `contract-b-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      await port.createPendingCheckin({ businessId: businessB.id, phone: '+15551230012' });
+
+      const queue = await port.listPendingCheckins(businessA.id);
+
+      expect(queue).toEqual([]);
+    });
   });
 }
 

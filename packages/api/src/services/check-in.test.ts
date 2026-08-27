@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { createInMemoryCheckInPort } from '../test-support/in-memory-check-in-port.js';
-import { confirmCheckin } from './check-in.js';
+import { confirmCheckin, listPendingCheckins } from './check-in.js';
 
 describe('confirmCheckin', () => {
   it('confirms a new customer at 1 point', async () => {
@@ -13,7 +13,7 @@ describe('confirmCheckin', () => {
 
     expect(result).toMatchObject({
       outcome: 'confirmed',
-      customer: { phone: '+15551234567', points: 1 },
+      customer: { phone: '•••-•••-4567', points: 1 },
       eligibleForRedemption: false,
     });
   });
@@ -69,5 +69,28 @@ describe('confirmCheckin', () => {
     const result = await confirmCheckin(port, { pendingCheckinId, confirmedBy: randomUUID() });
 
     expect(result).toEqual({ outcome: 'not_found' });
+  });
+});
+
+describe('listPendingCheckins', () => {
+  it('masks phone numbers, oldest first', async () => {
+    const { port, seedBusiness } = createInMemoryCheckInPort();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const first = await port.createPendingCheckin({ businessId: business.id, phone: '+15551234567' });
+    const second = await port.createPendingCheckin({ businessId: business.id, phone: '+15559876543' });
+
+    const queue = await listPendingCheckins(port, business.id);
+
+    expect(queue).toEqual([
+      { id: first.id, maskedPhone: '•••-•••-4567', createdAt: expect.any(Date) },
+      { id: second.id, maskedPhone: '•••-•••-6543', createdAt: expect.any(Date) },
+    ]);
+  });
+
+  it('is empty for a business with no pending check-ins', async () => {
+    const { port, seedBusiness } = createInMemoryCheckInPort();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+
+    expect(await listPendingCheckins(port, business.id)).toEqual([]);
   });
 });
