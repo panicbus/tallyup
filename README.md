@@ -55,12 +55,13 @@ Two separate processes — run each in its own terminal:
 calls the API at `http://localhost:3000` by default (override with
 `VITE_API_URL` in `packages/web/.env`).
 
-After seeding (`npm run db:seed`), the staff dashboard for the demo business
-is at:
+After seeding (`npm run db:seed`), the demo business's pages are at:
 
-    http://localhost:5173/dashboard/demo-bookstore
+    http://localhost:5173/dashboard/demo-bookstore   # staff
+    http://localhost:5173/checkin/demo-bookstore     # customer
 
 ## Status
-W4 (staff dashboard) complete: polling queue with server-masked phone
-numbers, confirm and redeem actions, a staff picker standing in for staff
-auth (not built until W6). No customer-facing check-in page yet (W5).
+W5 (customer check-in page & card) complete: `/checkin/:slug` form, a
+status poll while waiting, auto-transition to the point-total/reward card
+on confirm. Check-in submission is rate-limited per IP. No staff auth yet
+(W6) — the dashboard's staff picker stands in for it.
