@@ -1,9 +1,18 @@
+import { supabaseClient } from './supabase';
+
 const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3000';
 
-export interface StaffMember {
+async function authHeaders(): Promise<Record<string, string>> {
+  const { data } = await supabaseClient.auth.getSession();
+  const token = data.session?.access_token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+export interface MeResponse {
   id: string;
   email: string;
   role: string;
+  business: { id: string; name: string; slug: string; rewardThreshold: number; rewardDescription: string };
 }
 
 export interface QueuedPendingCheckin {
@@ -63,34 +72,33 @@ export async function getCheckinStatus(pendingCheckinId: string): Promise<Checki
   return response.json();
 }
 
-export async function getStaff(slug: string): Promise<StaffMember[]> {
-  const response = await fetch(`${API_URL}/businesses/${slug}/staff`);
-  if (!response.ok) throw new Error(`Failed to load staff (${response.status})`);
+export async function getMe(): Promise<MeResponse | null> {
+  const response = await fetch(`${API_URL}/me`, { headers: await authHeaders() });
+  if (response.status === 401) return null;
+  if (!response.ok) throw new Error(`Failed to load session (${response.status})`);
   return response.json();
 }
 
 export async function getPendingCheckins(slug: string): Promise<QueuedPendingCheckin[]> {
-  const response = await fetch(`${API_URL}/businesses/${slug}/pending-checkins`);
+  const response = await fetch(`${API_URL}/businesses/${slug}/pending-checkins`, { headers: await authHeaders() });
   if (!response.ok) throw new Error(`Failed to load queue (${response.status})`);
   return response.json();
 }
 
-export async function confirmCheckin(pendingCheckinId: string, confirmedBy: string): Promise<ConfirmCheckinResponse> {
+export async function confirmCheckin(pendingCheckinId: string): Promise<ConfirmCheckinResponse> {
   const response = await fetch(`${API_URL}/pending-checkins/${pendingCheckinId}/confirm`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ confirmedBy }),
+    headers: await authHeaders(),
   });
   if (response.status === 404) return { outcome: 'not_found' };
   if (!response.ok) throw new Error(`Failed to confirm (${response.status})`);
   return response.json();
 }
 
-export async function redeem(customerId: string, confirmedBy: string): Promise<RedeemResponse> {
+export async function redeem(customerId: string): Promise<RedeemResponse> {
   const response = await fetch(`${API_URL}/customers/${customerId}/redeem`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ confirmedBy }),
+    headers: await authHeaders(),
   });
   if (response.status === 409) return { outcome: 'not_eligible' };
   if (!response.ok) throw new Error(`Failed to redeem (${response.status})`);

@@ -13,7 +13,12 @@ Node 22.12+, npm 10+, Docker (for local Postgres).
 
 ## Install
     npm install
-    cp .env.example .env   # if you don't already have one
+    cp .env.example .env                       # if you don't already have one
+    cp packages/web/.env.example packages/web/.env
+
+Both `.env` files need a Supabase project's Auth credentials — Project
+Settings -> API in the Supabase dashboard. Local dev/test Postgres stays on
+Docker Compose regardless; Supabase here is Auth only.
 
 ## Database
 Local Postgres via Docker Compose — one `tallyup_dev` database for `npm run
@@ -61,7 +66,14 @@ After seeding (`npm run db:seed`), the demo business's pages are at:
     http://localhost:5173/checkin/demo-bookstore     # customer
 
 ## Status
-W5 (customer check-in page & card) complete: `/checkin/:slug` form, a
-status poll while waiting, auto-transition to the point-total/reward card
-on confirm. Check-in submission is rate-limited per IP. No staff auth yet
-(W6) — the dashboard's staff picker stands in for it.
+W6 (staff auth) complete: staff sign in with email/password at `/login`
+(Supabase Auth), and `/dashboard/:slug` requires a valid session — the
+old staff-picker dropdown is gone, `confirmedBy` is now derived
+server-side from the signed-in staff member. A staff member from one
+business gets a 403 confirming/redeeming/reading another business's data
+(enforced both at the route layer and by the DB's composite FKs).
+`SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` are
+required env vars now (see `.env.example`); Postgres itself stays local
+via Docker Compose. `npm run db:seed` provisions a real demo staff login
+(`demo-staff@example.com` / `tallyup-demo-password`) via the Supabase
+admin API.

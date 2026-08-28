@@ -1,48 +1,64 @@
+import { randomUUID } from 'node:crypto';
 import type { Kysely } from 'kysely';
 import { describe, expect, test } from '../test-support/integration-test.js';
-import { listStaffByBusiness } from './staff.js';
+import { findStaffByAuthUserId } from './staff.js';
 import type { Database } from './types.js';
 
-async function seedBusinessWithStaff(db: Kysely<Database>, emails: string[]) {
+async function seedBusinessWithStaff(db: Kysely<Database>, authUserId: string | null) {
   const business = await db
     .insertInto('businesses')
     .values({
-      name: 'Staff List Test Shop',
-      slug: `staff-list-${crypto.randomUUID()}`,
+      name: 'Staff Lookup Shop',
+      slug: `staff-lookup-${randomUUID()}`,
       reward_threshold: 10,
       reward_description: 'Free item',
     })
     .returningAll()
     .executeTakeFirstOrThrow();
 
-  for (const email of emails) {
-    await db.insertInto('staff').values({ business_id: business.id, email, role: 'owner' }).execute();
-  }
+  const staff = await db
+    .insertInto('staff')
+    .values({ business_id: business.id, email: 'owner@example.com', role: 'owner', auth_user_id: authUserId })
+    .returningAll()
+    .executeTakeFirstOrThrow();
 
-  return business;
+  return { business, staff };
 }
 
-describe('listStaffByBusiness', () => {
-  test('lists staff for the given business, alphabetically by email', async ({ db }) => {
-    const business = await seedBusinessWithStaff(db, ['zed@example.com', 'anna@example.com']);
+describe('findStaffByAuthUserId', () => {
+  test('resolves the staff member and their business for a linked auth account', async ({ db }) => {
+    const authUserId = randomUUID();
+    const { business, staff } = await seedBusinessWithStaff(db, authUserId);
 
-    const staff = await listStaffByBusiness(db, business.id);
+    const result = await findStaffByAuthUserId(db, authUserId);
 
-    expect(staff.map((s) => s.email)).toEqual(['anna@example.com', 'zed@example.com']);
+    expect(result).toEqual({
+      id: staff.id,
+      email: 'owner@example.com',
+      role: 'owner',
+      business: {
+        id: business.id,
+        name: business.name,
+        slug: business.slug,
+        rewardThreshold: business.reward_threshold,
+        rewardDescription: business.reward_description,
+      },
+    });
   });
 
-  test('excludes staff from other businesses', async ({ db }) => {
-    const businessA = await seedBusinessWithStaff(db, ['a@example.com']);
-    await seedBusinessWithStaff(db, ['b@example.com']);
-
-    const staff = await listStaffByBusiness(db, businessA.id);
-
-    expect(staff.map((s) => s.email)).toEqual(['a@example.com']);
+  test('returns null for an auth account with no linked staff row', async ({ db }) => {
+    const result = await findStaffByAuthUserId(db, randomUUID());
+    expect(result).toBeNull();
   });
 
-  test('is empty for a business with no staff', async ({ db }) => {
-    const business = await seedBusinessWithStaff(db, []);
+  test('returns null for a staff row that has never been linked to an auth account', async ({ db }) => {
+    await seedBusinessWithStaff(db, null);
 
-    expect(await listStaffByBusiness(db, business.id)).toEqual([]);
+    // A null auth_user_id must never match another null lookup — there is
+    // no real token whose verified identity is "no id", so this path
+    // should be unreachable, but the query must not treat null = null.
+    const result = await findStaffByAuthUserId(db, null as unknown as string);
+
+    expect(result).toBeNull();
   });
 });

@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
-import { confirmCheckin, getPendingCheckins, getStaff, redeem } from '../lib/api';
-import type { QueuedPendingCheckin, StaffMember } from '../lib/api';
-import { StaffPicker } from '../components/StaffPicker';
+import { useNavigate, useParams } from 'react-router-dom';
+import { confirmCheckin, getMe, getPendingCheckins, redeem } from '../lib/api';
+import type { MeResponse, QueuedPendingCheckin } from '../lib/api';
+import { supabaseClient } from '../lib/supabase';
 import { PendingCheckinRow } from '../components/PendingCheckinRow';
 import { ResultCard, type ResultCardData } from '../components/ResultCard';
 
@@ -15,22 +15,28 @@ interface TimedResult extends ResultCardData {
 
 export function Dashboard() {
   const { slug } = useParams() as { slug: string };
-  const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [selectedStaffId, setSelectedStaffId] = useState('');
+  const navigate = useNavigate();
+  const [me, setMe] = useState<MeResponse | null>(null);
   const [queue, setQueue] = useState<QueuedPendingCheckin[]>([]);
   const [results, setResults] = useState<TimedResult[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getStaff(slug)
-      .then((members) => {
-        setStaff(members);
-        setSelectedStaffId((current) => current || (members[0]?.id ?? ''));
-      })
-      .catch(() => setError('Could not load staff list.'));
-  }, [slug]);
+    getMe().then((result) => {
+      if (!result) {
+        navigate('/login');
+        return;
+      }
+      if (result.business.slug !== slug) {
+        navigate(`/dashboard/${result.business.slug}`);
+        return;
+      }
+      setMe(result);
+    });
+  }, [slug, navigate]);
 
   useEffect(() => {
+    if (!me) return;
     let cancelled = false;
 
     async function poll() {
@@ -51,10 +57,15 @@ export function Dashboard() {
       cancelled = true;
       clearInterval(interval);
     };
-  }, [slug]);
+  }, [slug, me]);
+
+  async function handleSignOut() {
+    await supabaseClient.auth.signOut();
+    navigate('/login');
+  }
 
   async function handleConfirm(pendingCheckinId: string) {
-    const result = await confirmCheckin(pendingCheckinId, selectedStaffId);
+    const result = await confirmCheckin(pendingCheckinId);
     setQueue((current) => current.filter((item) => item.id !== pendingCheckinId));
 
     if (result.outcome === 'confirmed') {
@@ -73,7 +84,7 @@ export function Dashboard() {
   }
 
   async function handleRedeem(customerId: string) {
-    const result = await redeem(customerId, selectedStaffId);
+    const result = await redeem(customerId);
 
     if (result.outcome === 'redeemed') {
       setResults((current) =>
@@ -95,11 +106,24 @@ export function Dashboard() {
     setResults((current) => current.filter((r) => r.customerId !== customerId));
   }
 
+  if (!me) {
+    return (
+      <main>
+        <p>Loading…</p>
+      </main>
+    );
+  }
+
   return (
     <main>
       <h1>Staff dashboard</h1>
       {error && <p role="alert">{error}</p>}
-      <StaffPicker staff={staff} selectedId={selectedStaffId} onChange={setSelectedStaffId} />
+      <p>
+        Signed in as {me.email}{' '}
+        <button type="button" onClick={handleSignOut}>
+          Sign out
+        </button>
+      </p>
 
       <section>
         <h2>Waiting</h2>
@@ -112,7 +136,7 @@ export function Dashboard() {
                 key={checkin.id}
                 checkin={checkin}
                 onConfirm={handleConfirm}
-                confirmDisabled={!selectedStaffId}
+                confirmDisabled={false}
               />
             ))}
           </ul>
@@ -129,7 +153,7 @@ export function Dashboard() {
                 result={result}
                 onRedeem={handleRedeem}
                 onDismiss={handleDismiss}
-                redeemDisabled={!selectedStaffId}
+                redeemDisabled={false}
               />
             ))}
           </ul>

@@ -219,6 +219,34 @@ export function runCheckInPortContractTests<Fixtures extends { realDb?: unknown 
 
       expect(status).toEqual({ status: 'not_found' });
     });
+
+    test('findPendingCheckinBusinessId resolves the owning business', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      const pending = await port.createPendingCheckin({ businessId: business.id, phone: '+15551230016' });
+
+      expect(await port.findPendingCheckinBusinessId(pending.id)).toBe(business.id);
+    });
+
+    test('findPendingCheckinBusinessId returns null for an unknown id', async ({ realDb }) => {
+      const { port } = await createSetup({ realDb } as Fixtures);
+
+      expect(await port.findPendingCheckinBusinessId(crypto.randomUUID())).toBeNull();
+    });
+
+    test('findCustomerBusinessId resolves the owning business', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      const customerId = await checkInNTimes(port, business, '+15551230017', 1);
+
+      expect(await port.findCustomerBusinessId(customerId)).toBe(business.id);
+    });
+
+    test('findCustomerBusinessId returns null for an unknown id', async ({ realDb }) => {
+      const { port } = await createSetup({ realDb } as Fixtures);
+
+      expect(await port.findCustomerBusinessId(crypto.randomUUID())).toBeNull();
+    });
   });
 }
 

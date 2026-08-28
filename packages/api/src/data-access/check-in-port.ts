@@ -61,4 +61,9 @@ export interface CheckInPort {
   /** The customer-facing poll target — public, no auth, keyed only by the
    * unguessable pending-check-in id the customer already holds. */
   getCheckinStatus(pendingCheckinId: string): Promise<CheckinStatusResult>;
+  /** Tenant-isolation lookups: which business a resource belongs to, so a
+   * route can 403 a staff member acting outside their own business before
+   * confirmCheckin/redeem ever run. Null if the resource doesn't exist. */
+  findPendingCheckinBusinessId(pendingCheckinId: string): Promise<string | null>;
+  findCustomerBusinessId(customerId: string): Promise<string | null>;
 }

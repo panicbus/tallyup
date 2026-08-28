@@ -1,6 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
 import { CheckIn } from './pages/CheckIn';
+import { Login } from './pages/Login';
 
 function Home() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
         <Route path="/dashboard/:slug" element={<Dashboard />} />
         <Route path="/checkin/:slug" element={<CheckIn />} />
       </Routes>

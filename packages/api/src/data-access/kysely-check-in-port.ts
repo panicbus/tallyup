@@ -190,5 +190,19 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
 
       return { status: 'pending', expiresAt: new Date(pending.expires_at) };
     },
+
+    async findPendingCheckinBusinessId(pendingCheckinId) {
+      const row = await db
+        .selectFrom('pending_checkins')
+        .select('business_id')
+        .where('id', '=', pendingCheckinId)
+        .executeTakeFirst();
+      return row?.business_id ?? null;
+    },
+
+    async findCustomerBusinessId(customerId) {
+      const row = await db.selectFrom('customers').select('business_id').where('id', '=', customerId).executeTakeFirst();
+      return row?.business_id ?? null;
+    },
   };
 }

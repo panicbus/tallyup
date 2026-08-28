@@ -26,6 +26,9 @@ export interface StaffTable {
   email: string;
   role: string;
   created_at: CreatedAt;
+  /** The Supabase Auth user id (`sub` claim) this staff row signs in as.
+   * Null until W8's onboarding (or a manual seed) provisions the account. */
+  auth_user_id: string | null;
 }
 
 export interface CustomersTable {

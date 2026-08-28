@@ -160,6 +160,17 @@ export function createInMemoryCheckInPort() {
 
       return { status: 'pending', expiresAt: pending.expiresAt };
     },
+
+    async findPendingCheckinBusinessId(pendingCheckinId) {
+      return pendingCheckins.get(pendingCheckinId)?.businessId ?? null;
+    },
+
+    async findCustomerBusinessId(customerId) {
+      for (const customer of customers.values()) {
+        if (customer.id === customerId) return customer.businessId;
+      }
+      return null;
+    },
   };
 
   async function seedBusiness(

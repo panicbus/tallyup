@@ -1,16 +1,15 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import cors from '@fastify/cors';
 import rateLimit from '@fastify/rate-limit';
-import type { Kysely } from 'kysely';
 import { registerRoutes } from './routes/index.js';
 import type { CheckInPort } from './data-access/check-in-port.js';
-import type { Database } from './data-access/types.js';
+import type { AuthPort } from './data-access/auth-port.js';
+import type { StaffPort } from './data-access/staff-port.js';
 
 export interface AppDependencies {
   checkInPort: CheckInPort;
-  /** Raw connection, for reads simple enough not to need the port/fake
-   * treatment (e.g. listing staff) — see data-access/staff.ts. */
-  db: Kysely<Database>;
+  authPort: AuthPort;
+  staffPort: StaffPort;
 }
 
 export function buildApp(deps: AppDependencies, opts: FastifyServerOptions = {}): FastifyInstance {

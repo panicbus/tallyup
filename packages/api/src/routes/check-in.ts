@@ -4,11 +4,10 @@ import { phoneSchema } from '@tallyup/shared';
 import { confirmCheckin, listPendingCheckins } from '../services/check-in.js';
 import { redeem } from '../services/redemption.js';
 import { getCheckinStatus } from '../services/checkin-status.js';
+import { requireStaff } from './require-staff.js';
 import type { AppDependencies } from '../app.js';
 
 const createPendingCheckinBodySchema = z.object({ phone: phoneSchema });
-const confirmBodySchema = z.object({ confirmedBy: z.string().uuid() });
-const redeemBodySchema = z.object({ confirmedBy: z.string().uuid() });
 
 export async function checkInRoutes(app: FastifyInstance, deps: AppDependencies): Promise<void> {
   app.get('/businesses/:slug', async (request, reply) => {
@@ -60,28 +59,35 @@ export async function checkInRoutes(app: FastifyInstance, deps: AppDependencies)
     return reply.code(200).send(result);
   });
 
-  app.get('/businesses/:slug/pending-checkins', async (request, reply) => {
+  app.get('/businesses/:slug/pending-checkins', { preHandler: requireStaff(deps) }, async (request, reply) => {
     const { slug } = request.params as { slug: string };
 
     const business = await deps.checkInPort.findBusinessBySlug(slug);
     if (!business) {
       return reply.code(404).send({ error: 'business_not_found' });
     }
+    if (business.id !== request.staff!.business.id) {
+      return reply.code(403).send({ error: 'forbidden' });
+    }
 
     const queue = await listPendingCheckins(deps.checkInPort, business.id);
     return reply.code(200).send(queue);
   });
 
-  app.post('/pending-checkins/:id/confirm', async (request, reply) => {
+  app.post('/pending-checkins/:id/confirm', { preHandler: requireStaff(deps) }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const parsedBody = confirmBodySchema.safeParse(request.body);
-    if (!parsedBody.success) {
-      return reply.code(400).send({ error: 'invalid_confirmed_by' });
+
+    const businessId = await deps.checkInPort.findPendingCheckinBusinessId(id);
+    if (businessId === null) {
+      return reply.code(404).send({ error: 'not_found' });
+    }
+    if (businessId !== request.staff!.business.id) {
+      return reply.code(403).send({ error: 'forbidden' });
     }
 
     const result = await confirmCheckin(deps.checkInPort, {
       pendingCheckinId: id,
-      confirmedBy: parsedBody.data.confirmedBy,
+      confirmedBy: request.staff!.id,
     });
 
     if (result.outcome === 'not_found') {
@@ -91,16 +97,22 @@ export async function checkInRoutes(app: FastifyInstance, deps: AppDependencies)
     return reply.code(200).send(result);
   });
 
-  app.post('/customers/:id/redeem', async (request, reply) => {
+  app.post('/customers/:id/redeem', { preHandler: requireStaff(deps) }, async (request, reply) => {
     const { id } = request.params as { id: string };
-    const parsedBody = redeemBodySchema.safeParse(request.body);
-    if (!parsedBody.success) {
-      return reply.code(400).send({ error: 'invalid_confirmed_by' });
+
+    const businessId = await deps.checkInPort.findCustomerBusinessId(id);
+    // Unlike confirm's not_found, an unknown customer id here stays
+    // indistinguishable from "not enough points" (409) — that's the
+    // existing not_eligible contract. A *known* customer at another
+    // business is the new case this route didn't have to consider before
+    // auth existed, and gets its own 403.
+    if (businessId !== null && businessId !== request.staff!.business.id) {
+      return reply.code(403).send({ error: 'forbidden' });
     }
 
     const result = await redeem(deps.checkInPort, {
       customerId: id,
-      confirmedBy: parsedBody.data.confirmedBy,
+      confirmedBy: request.staff!.id,
     });
 
     if (result.outcome === 'not_eligible') {
