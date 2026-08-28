@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { confirmCheckin, getMe, getPendingCheckins, redeem } from '../lib/api';
 import type { MeResponse, QueuedPendingCheckin } from '../lib/api';
 import { supabaseClient } from '../lib/supabase';
@@ -120,6 +120,7 @@ export function Dashboard() {
       {error && <p role="alert">{error}</p>}
       <p>
         Signed in as {me.email}{' '}
+        <Link to={`/dashboard/${slug}/settings`}>Settings</Link>{' '}
         <button type="button" onClick={handleSignOut}>
           Sign out
         </button>

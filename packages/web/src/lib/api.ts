@@ -34,6 +34,19 @@ export interface BusinessSummary {
   rewardDescription: string;
 }
 
+export interface OnboardedBusiness {
+  id: string;
+  name: string;
+  slug: string;
+  rewardThreshold: number;
+  rewardDescription: string;
+}
+
+export type CreateBusinessResponse =
+  | { outcome: 'created'; business: OnboardedBusiness }
+  | { outcome: 'slug_taken' }
+  | { outcome: 'already_onboarded' };
+
 export type ConfirmCheckinResponse =
   | { outcome: 'confirmed'; customer: CustomerSummary; business: BusinessSummary; eligibleForRedemption: boolean }
   | { outcome: 'not_found' };
@@ -102,5 +115,37 @@ export async function redeem(customerId: string): Promise<RedeemResponse> {
   });
   if (response.status === 409) return { outcome: 'not_eligible' };
   if (!response.ok) throw new Error(`Failed to redeem (${response.status})`);
+  return response.json();
+}
+
+export async function createBusiness(input: {
+  name: string;
+  slug: string;
+  rewardThreshold: number;
+  rewardDescription: string;
+}): Promise<CreateBusinessResponse> {
+  const response = await fetch(`${API_URL}/businesses`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+    body: JSON.stringify(input),
+  });
+  if (response.status === 409) {
+    const body = await response.json();
+    return { outcome: body.error };
+  }
+  if (!response.ok) throw new Error(`Failed to create business (${response.status})`);
+  return response.json();
+}
+
+export async function updateBusiness(
+  slug: string,
+  input: { name: string; rewardThreshold: number; rewardDescription: string },
+): Promise<OnboardedBusiness> {
+  const response = await fetch(`${API_URL}/businesses/${slug}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+    body: JSON.stringify(input),
+  });
+  if (!response.ok) throw new Error(`Failed to update business (${response.status})`);
   return response.json();
 }

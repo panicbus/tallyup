@@ -26,4 +26,10 @@ describe('LoginForm', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('Invalid email or password.');
   });
+
+  it('uses a custom submit label when given one', () => {
+    render(<LoginForm onSubmit={() => {}} submitting={false} submitLabel="Create account" />);
+
+    expect(screen.getByRole('button', { name: 'Create account' })).toBeTruthy();
+  });
 });

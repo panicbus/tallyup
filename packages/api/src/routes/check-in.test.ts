@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import type { CheckInPort } from '../data-access/check-in-port.js';
 import { buildApp } from '../app.js';
+import { createDb } from '../data-access/db.js';
 import { createInMemoryCheckInPort } from '../test-support/in-memory-check-in-port.js';
 import { createInMemoryAuthPort } from '../test-support/in-memory-auth-port.js';
 import { createInMemoryStaffPort } from '../test-support/in-memory-staff-port.js';
@@ -9,7 +10,9 @@ import { createInMemoryStaffPort } from '../test-support/in-memory-staff-port.js
 function buildTestApp(checkInPort: CheckInPort) {
   const { port: authPort, issueToken } = createInMemoryAuthPort();
   const { port: staffPort, addStaff } = createInMemoryStaffPort();
-  const app = buildApp({ checkInPort, authPort, staffPort }, { logger: false });
+  // Never queried by these tests — Pool connections are lazy, so a bogus
+  // connection string is fine for a dependency none of them exercise.
+  const app = buildApp({ checkInPort, authPort, staffPort, db: createDb('postgres://unused') }, { logger: false });
 
   function loginAsStaffOf(businessId: string) {
     const authUserId = randomUUID();

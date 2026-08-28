@@ -66,14 +66,13 @@ After seeding (`npm run db:seed`), the demo business's pages are at:
     http://localhost:5173/checkin/demo-bookstore     # customer
 
 ## Status
-W6 (staff auth) complete: staff sign in with email/password at `/login`
-(Supabase Auth), and `/dashboard/:slug` requires a valid session — the
-old staff-picker dropdown is gone, `confirmedBy` is now derived
-server-side from the signed-in staff member. A staff member from one
-business gets a 403 confirming/redeeming/reading another business's data
-(enforced both at the route layer and by the DB's composite FKs).
-`SUPABASE_URL`/`SUPABASE_ANON_KEY`/`SUPABASE_SERVICE_ROLE_KEY` are
-required env vars now (see `.env.example`); Postgres itself stays local
-via Docker Compose. `npm run db:seed` provisions a real demo staff login
-(`demo-staff@example.com` / `tallyup-demo-password`) via the Supabase
-admin API.
+W8 (business onboarding) complete: `/signup` creates a Supabase Auth
+account and, on first login with no linked business yet, routes to
+`/onboarding` — name, reward threshold/description, and a slug
+auto-derived from the name (editable) — which atomically creates the
+business and its owner staff row, then shows a QR code (`qrcode.react`,
+client-side, no image storage) linking to `/checkin/:slug`.
+`/dashboard/:slug/settings` edits name/threshold/description (not the
+slug, which is printed on signage). `POST /businesses` is gated by a
+lighter `requireAuthenticatedIdentity` check (valid Supabase session,
+no staff row required yet) rather than `requireStaff`.

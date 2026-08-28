@@ -7,7 +7,7 @@ import { createSupabaseAuthPort } from './data-access/supabase-auth-port.js';
 
 const db = createDb(requireEnv('DATABASE_URL'));
 const authPort = createSupabaseAuthPort(requireEnv('SUPABASE_URL'), requireEnv('SUPABASE_ANON_KEY'));
-const app = buildApp({ checkInPort: createKyselyCheckInPort(db), staffPort: createKyselyStaffPort(db), authPort });
+const app = buildApp({ checkInPort: createKyselyCheckInPort(db), staffPort: createKyselyStaffPort(db), authPort, db });
 
 const port = Number(process.env.PORT ?? 3000);
 const host = process.env.HOST ?? '0.0.0.0';

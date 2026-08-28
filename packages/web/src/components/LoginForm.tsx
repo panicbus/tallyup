@@ -4,9 +4,10 @@ interface LoginFormProps {
   onSubmit: (email: string, password: string) => void;
   submitting: boolean;
   error?: string;
+  submitLabel?: string;
 }
 
-export function LoginForm({ onSubmit, submitting, error }: LoginFormProps) {
+export function LoginForm({ onSubmit, submitting, error, submitLabel = 'Sign in' }: LoginFormProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -27,7 +28,7 @@ export function LoginForm({ onSubmit, submitting, error }: LoginFormProps) {
         <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
       </label>
       <button type="submit" disabled={submitting}>
-        Sign in
+        {submitLabel}
       </button>
     </form>
   );

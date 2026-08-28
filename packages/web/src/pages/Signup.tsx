@@ -4,7 +4,7 @@ import { supabaseClient } from '../lib/supabase';
 import { getMe } from '../lib/api';
 import { LoginForm } from '../components/LoginForm';
 
-export function Login() {
+export function Signup() {
   const navigate = useNavigate();
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
@@ -13,9 +13,9 @@ export function Login() {
     setSubmitting(true);
     setError(undefined);
 
-    const { error: signInError } = await supabaseClient.auth.signInWithPassword({ email, password });
-    if (signInError) {
-      setError('Invalid email or password.');
+    const { error: signUpError } = await supabaseClient.auth.signUp({ email, password });
+    if (signUpError) {
+      setError(signUpError.message);
       setSubmitting(false);
       return;
     }
@@ -26,10 +26,10 @@ export function Login() {
 
   return (
     <main>
-      <h1>Staff sign in</h1>
-      <LoginForm onSubmit={handleSubmit} submitting={submitting} error={error} />
+      <h1>Create your business account</h1>
+      <LoginForm onSubmit={handleSubmit} submitting={submitting} error={error} submitLabel="Create account" />
       <p>
-        New shop? <Link to="/signup">Create an account</Link>
+        Already have an account? <Link to="/login">Sign in</Link>
       </p>
     </main>
   );

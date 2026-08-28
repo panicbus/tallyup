@@ -37,7 +37,7 @@ async function seedBusinessAndStaff(db: Kysely<Database>, rewardThreshold = 10) 
 function buildAuthedApp(realDb: Kysely<Database>) {
   const { port: authPort, issueToken } = createInMemoryAuthPort();
   const app = buildApp(
-    { checkInPort: createKyselyCheckInPort(realDb), staffPort: createKyselyStaffPort(realDb), authPort },
+    { checkInPort: createKyselyCheckInPort(realDb), staffPort: createKyselyStaffPort(realDb), authPort, db: realDb },
     { logger: false },
   );
   return { app, issueToken };
