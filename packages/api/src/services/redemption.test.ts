@@ -24,7 +24,7 @@ describe('redeem', () => {
     expect(result).toEqual({
       outcome: 'redeemed',
       customer: { id: expect.any(String), phone: '•••-•••-4567', points: 0 },
-      business: { id: business.id, rewardThreshold: 10 },
+      business: { id: business.id, name: business.name, rewardThreshold: 10, rewardDescription: business.rewardDescription },
       eligibleForRedemption: false,
     });
   });

@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
+import { CheckIn } from './pages/CheckIn';
 
 function Home() {
   return (
@@ -16,6 +17,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/dashboard/:slug" element={<Dashboard />} />
+        <Route path="/checkin/:slug" element={<CheckIn />} />
       </Routes>
     </BrowserRouter>
   );

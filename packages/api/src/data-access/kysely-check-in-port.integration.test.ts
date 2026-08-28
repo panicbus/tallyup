@@ -22,7 +22,13 @@ async function seedBusiness(db: Kysely<Database>, input: { slug: string; rewardT
     .returningAll()
     .executeTakeFirstOrThrow();
 
-  return { id: business.id, rewardThreshold: business.reward_threshold, confirmedBy: staff.id };
+  return {
+    id: business.id,
+    name: business.name,
+    rewardThreshold: business.reward_threshold,
+    rewardDescription: business.reward_description,
+    confirmedBy: staff.id,
+  };
 }
 
 async function seedExpiredPendingCheckin(db: Kysely<Database>, input: { businessId: string; phone: string }) {

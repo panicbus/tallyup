@@ -1,19 +1,23 @@
 import type { Kysely } from 'kysely';
 import type { Database } from './types.js';
-import type { CheckInPort, ConfirmCheckinResult, RedeemResult } from './check-in-port.js';
+import type { Business, CheckInPort, ConfirmCheckinResult, RedeemResult } from './check-in-port.js';
 
 const PENDING_CHECKIN_TTL_MS = 20 * 60_000;
+
+function toBusiness(row: { id: string; name: string; reward_threshold: number; reward_description: string }): Business {
+  return { id: row.id, name: row.name, rewardThreshold: row.reward_threshold, rewardDescription: row.reward_description };
+}
 
 export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
   return {
     async findBusinessBySlug(slug) {
       const row = await db
         .selectFrom('businesses')
-        .select(['id', 'reward_threshold'])
+        .select(['id', 'name', 'reward_threshold', 'reward_description'])
         .where('slug', '=', slug)
         .executeTakeFirst();
 
-      return row ? { id: row.id, rewardThreshold: row.reward_threshold } : null;
+      return row ? toBusiness(row) : null;
     },
 
     async createPendingCheckin({ businessId, phone }) {
@@ -22,7 +26,11 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
       const row = await db
         .insertInto('pending_checkins')
         .values({ business_id: businessId, phone, expires_at: expiresAt })
-        .onConflict((oc) => oc.columns(['business_id', 'phone']).doUpdateSet({ expires_at: expiresAt }))
+        .onConflict((oc) =>
+          // A fresh submission always starts a new pending state, even if
+          // this (business_id, phone) pair was already confirmed before.
+          oc.columns(['business_id', 'phone']).doUpdateSet({ expires_at: expiresAt, confirmed_at: null }),
+        )
         .returning(['id', 'expires_at'])
         .executeTakeFirstOrThrow();
 
@@ -31,18 +39,22 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
 
     async confirmCheckin({ pendingCheckinId, confirmedBy }): Promise<ConfirmCheckinResult> {
       return db.transaction().execute(async (trx) => {
-        // The fraud gate: this delete only succeeds once per pending
+        // The fraud gate: this update only succeeds once per pending
         // check-in, and only before it expires. Whether it returns a row
         // is the single source of truth for whether this confirm may
-        // proceed — everything else in this transaction is conditioned on it.
-        const deleted = await trx
-          .deleteFrom('pending_checkins')
+        // proceed — everything else in this transaction is conditioned on
+        // it. The row is never deleted (unlike W2's original design) so
+        // the customer-facing status poll has something to find afterward.
+        const confirmed = await trx
+          .updateTable('pending_checkins')
+          .set({ confirmed_at: new Date() })
           .where('id', '=', pendingCheckinId)
+          .where('confirmed_at', 'is', null)
           .where('expires_at', '>', new Date())
           .returning(['business_id', 'phone'])
           .executeTakeFirst();
 
-        if (!deleted) {
+        if (!confirmed) {
           return { outcome: 'not_found' };
         }
 
@@ -50,7 +62,7 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
         // increments points if returning — one statement, one round trip.
         const customer = await trx
           .insertInto('customers')
-          .values({ business_id: deleted.business_id, phone: deleted.phone, points: 1 })
+          .values({ business_id: confirmed.business_id, phone: confirmed.phone, points: 1 })
           .onConflict((oc) =>
             oc.columns(['business_id', 'phone']).doUpdateSet((eb) => ({
               points: eb('customers.points', '+', 1),
@@ -61,19 +73,19 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
 
         await trx
           .insertInto('visits')
-          .values({ business_id: deleted.business_id, customer_id: customer.id, confirmed_by: confirmedBy })
+          .values({ business_id: confirmed.business_id, customer_id: customer.id, confirmed_by: confirmedBy })
           .execute();
 
         const business = await trx
           .selectFrom('businesses')
-          .select(['id', 'reward_threshold'])
-          .where('id', '=', deleted.business_id)
+          .select(['id', 'name', 'reward_threshold', 'reward_description'])
+          .where('id', '=', confirmed.business_id)
           .executeTakeFirstOrThrow();
 
         return {
           outcome: 'confirmed',
           customer: { id: customer.id, phone: customer.phone, points: customer.points },
-          business: { id: business.id, rewardThreshold: business.reward_threshold },
+          business: toBusiness(business),
         };
       });
     },
@@ -92,7 +104,7 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
 
         const business = await trx
           .selectFrom('businesses')
-          .select(['id', 'reward_threshold'])
+          .select(['id', 'name', 'reward_threshold', 'reward_description'])
           .where('id', '=', customer.business_id)
           .executeTakeFirstOrThrow();
 
@@ -126,7 +138,7 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
         return {
           outcome: 'redeemed',
           customer: { id: updated.id, phone: updated.phone, points: updated.points },
-          business: { id: business.id, rewardThreshold: business.reward_threshold },
+          business: toBusiness(business),
         };
       });
     },
@@ -136,11 +148,47 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
         .selectFrom('pending_checkins')
         .select(['id', 'phone', 'created_at'])
         .where('business_id', '=', businessId)
+        .where('confirmed_at', 'is', null)
         .where('expires_at', '>', new Date())
         .orderBy('created_at', 'asc')
         .execute();
 
       return rows.map((row) => ({ id: row.id, phone: row.phone, createdAt: new Date(row.created_at) }));
+    },
+
+    async getCheckinStatus(pendingCheckinId) {
+      const pending = await db
+        .selectFrom('pending_checkins')
+        .select(['business_id', 'phone', 'expires_at', 'confirmed_at'])
+        .where('id', '=', pendingCheckinId)
+        .executeTakeFirst();
+
+      if (!pending) {
+        return { status: 'not_found' };
+      }
+
+      if (pending.confirmed_at !== null) {
+        const business = await db
+          .selectFrom('businesses')
+          .select(['id', 'name', 'reward_threshold', 'reward_description'])
+          .where('id', '=', pending.business_id)
+          .executeTakeFirstOrThrow();
+
+        const customer = await db
+          .selectFrom('customers')
+          .select(['id', 'phone', 'points'])
+          .where('business_id', '=', pending.business_id)
+          .where('phone', '=', pending.phone)
+          .executeTakeFirstOrThrow();
+
+        return { status: 'confirmed', customer, business: toBusiness(business) };
+      }
+
+      if (new Date(pending.expires_at).getTime() <= Date.now()) {
+        return { status: 'expired' };
+      }
+
+      return { status: 'pending', expiresAt: new Date(pending.expires_at) };
     },
   };
 }

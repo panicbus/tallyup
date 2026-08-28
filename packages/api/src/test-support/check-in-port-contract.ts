@@ -95,7 +95,12 @@ export function runCheckInPortContractTests<Fixtures extends { realDb?: unknown 
       const slug = `contract-${crypto.randomUUID()}`;
       const business = await seedBusiness({ slug, rewardThreshold: 7 });
 
-      expect(await port.findBusinessBySlug(slug)).toEqual({ id: business.id, rewardThreshold: 7 });
+      expect(await port.findBusinessBySlug(slug)).toEqual({
+        id: business.id,
+        name: business.name,
+        rewardThreshold: 7,
+        rewardDescription: business.rewardDescription,
+      });
     });
 
     test('redeems exactly at the threshold, applying rollover', async ({ realDb }) => {
@@ -172,6 +177,47 @@ export function runCheckInPortContractTests<Fixtures extends { realDb?: unknown 
       const queue = await port.listPendingCheckins(businessA.id);
 
       expect(queue).toEqual([]);
+    });
+
+    test('getCheckinStatus reports pending before confirmation', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      const pending = await port.createPendingCheckin({ businessId: business.id, phone: '+15551230013' });
+
+      const status = await port.getCheckinStatus(pending.id);
+
+      expect(status).toEqual({ status: 'pending', expiresAt: pending.expiresAt });
+    });
+
+    test('getCheckinStatus reports confirmed with the resulting customer, after confirmation', async ({
+      realDb,
+    }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      const pending = await port.createPendingCheckin({ businessId: business.id, phone: '+15551230014' });
+      await port.confirmCheckin({ pendingCheckinId: pending.id, confirmedBy: business.confirmedBy });
+
+      const status = await port.getCheckinStatus(pending.id);
+
+      expect(status).toMatchObject({ status: 'confirmed', customer: { phone: '+15551230014', points: 1 } });
+    });
+
+    test('getCheckinStatus reports expired for a stale, unconfirmed pending check-in', async ({ realDb }) => {
+      const { port, seedBusiness, seedExpiredPendingCheckin } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      const pendingCheckinId = await seedExpiredPendingCheckin({ businessId: business.id, phone: '+15551230015' });
+
+      const status = await port.getCheckinStatus(pendingCheckinId);
+
+      expect(status).toEqual({ status: 'expired' });
+    });
+
+    test('getCheckinStatus reports not_found for an unknown id', async ({ realDb }) => {
+      const { port } = await createSetup({ realDb } as Fixtures);
+
+      const status = await port.getCheckinStatus(crypto.randomUUID());
+
+      expect(status).toEqual({ status: 'not_found' });
     });
   });
 }

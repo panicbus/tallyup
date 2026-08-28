@@ -87,4 +87,50 @@ describe('check-in fraud gate, end to end via HTTP', () => {
     });
     expect(secondRedeem.statusCode).toBe(409);
   });
+
+  test('the customer status poll transitions from pending to confirmed', async ({ realDb }) => {
+    const { business, staff } = await seedBusinessAndStaff(realDb);
+    const app = buildApp({ checkInPort: createKyselyCheckInPort(realDb), db: realDb }, { logger: false });
+
+    const createResponse = await app.inject({
+      method: 'POST',
+      url: `/businesses/${business.slug}/pending-checkins`,
+      payload: { phone: '555-999-0003' },
+    });
+    const { id: pendingCheckinId } = createResponse.json();
+
+    const pendingStatus = await app.inject({ method: 'GET', url: `/pending-checkins/${pendingCheckinId}/status` });
+    expect(pendingStatus.statusCode).toBe(200);
+    expect(pendingStatus.json()).toMatchObject({ status: 'pending' });
+
+    await app.inject({
+      method: 'POST',
+      url: `/pending-checkins/${pendingCheckinId}/confirm`,
+      payload: { confirmedBy: staff.id },
+    });
+
+    const confirmedStatus = await app.inject({ method: 'GET', url: `/pending-checkins/${pendingCheckinId}/status` });
+    expect(confirmedStatus.statusCode).toBe(200);
+    expect(confirmedStatus.json()).toMatchObject({ status: 'confirmed', customer: { points: 1 } });
+  });
+
+  test('check-in submission is rate-limited per IP', async ({ realDb }) => {
+    const { business } = await seedBusinessAndStaff(realDb);
+    const app = buildApp({ checkInPort: createKyselyCheckInPort(realDb), db: realDb }, { logger: false });
+
+    const responses = [];
+    for (let i = 0; i < 11; i++) {
+      responses.push(
+        await app.inject({
+          method: 'POST',
+          url: `/businesses/${business.slug}/pending-checkins`,
+          payload: { phone: '555-999-0004' },
+        }),
+      );
+    }
+
+    const statusCodes = responses.map((r) => r.statusCode);
+    expect(statusCodes.filter((code) => code === 200).length).toBe(10);
+    expect(statusCodes.filter((code) => code === 429).length).toBe(1);
+  });
 });

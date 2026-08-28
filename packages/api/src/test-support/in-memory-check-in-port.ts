@@ -13,6 +13,7 @@ interface StoredPendingCheckin {
   phone: string;
   createdAt: Date;
   expiresAt: Date;
+  confirmedAt: Date | null;
 }
 
 interface StoredCustomer {
@@ -33,11 +34,20 @@ export function createInMemoryCheckInPort() {
   const pendingCheckins = new Map<string, StoredPendingCheckin>();
   const customers = new Map<string, StoredCustomer>();
 
+  function businessView(business: StoredBusiness): Business {
+    return {
+      id: business.id,
+      name: business.name,
+      rewardThreshold: business.rewardThreshold,
+      rewardDescription: business.rewardDescription,
+    };
+  }
+
   const port: CheckInPort = {
     async findBusinessBySlug(slug) {
       for (const business of businesses.values()) {
         if (business.slug === slug) {
-          return { id: business.id, rewardThreshold: business.rewardThreshold };
+          return businessView(business);
         }
       }
       return null;
@@ -53,20 +63,21 @@ export function createInMemoryCheckInPort() {
       if (existing) {
         existing.createdAt = now;
         existing.expiresAt = expiresAt;
+        existing.confirmedAt = null; // a fresh submission always starts a new pending state
         return { id: existing.id, expiresAt };
       }
 
       const id = randomUUID();
-      pendingCheckins.set(id, { id, businessId, phone, createdAt: now, expiresAt });
+      pendingCheckins.set(id, { id, businessId, phone, createdAt: now, expiresAt, confirmedAt: null });
       return { id, expiresAt };
     },
 
     async confirmCheckin({ pendingCheckinId, confirmedBy }) {
       const pending = pendingCheckins.get(pendingCheckinId);
-      if (!pending || pending.expiresAt.getTime() <= Date.now()) {
+      if (!pending || pending.confirmedAt !== null || pending.expiresAt.getTime() <= Date.now()) {
         return { outcome: 'not_found' };
       }
-      pendingCheckins.delete(pendingCheckinId);
+      pending.confirmedAt = new Date();
       void confirmedBy; // recorded on a `visits` row in the real adapter; nothing to store here
 
       const business = businesses.get(pending.businessId);
@@ -84,7 +95,7 @@ export function createInMemoryCheckInPort() {
       return {
         outcome: 'confirmed',
         customer: { id: customer.id, phone: customer.phone, points: customer.points },
-        business: { id: business.id, rewardThreshold: business.rewardThreshold },
+        business: businessView(business),
       };
     },
 
@@ -109,29 +120,64 @@ export function createInMemoryCheckInPort() {
       return {
         outcome: 'redeemed',
         customer: { id: customer.id, phone: customer.phone, points: customer.points },
-        business: { id: business.id, rewardThreshold: business.rewardThreshold },
+        business: businessView(business),
       };
     },
 
     async listPendingCheckins(businessId) {
       const now = Date.now();
       return [...pendingCheckins.values()]
-        .filter((p) => p.businessId === businessId && p.expiresAt.getTime() > now)
+        .filter((p) => p.businessId === businessId && p.confirmedAt === null && p.expiresAt.getTime() > now)
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
         .map((p) => ({ id: p.id, phone: p.phone, createdAt: p.createdAt }));
+    },
+
+    async getCheckinStatus(pendingCheckinId) {
+      const pending = pendingCheckins.get(pendingCheckinId);
+      if (!pending) {
+        return { status: 'not_found' };
+      }
+
+      if (pending.confirmedAt !== null) {
+        const business = businesses.get(pending.businessId);
+        if (!business) {
+          throw new Error(`no business seeded for id ${pending.businessId}`);
+        }
+        const customer = customers.get(`${pending.businessId}:${pending.phone}`);
+        if (!customer) {
+          throw new Error(`confirmed pending checkin ${pendingCheckinId} has no matching customer`);
+        }
+        return {
+          status: 'confirmed',
+          customer: { id: customer.id, phone: customer.phone, points: customer.points },
+          business: businessView(business),
+        };
+      }
+
+      if (pending.expiresAt.getTime() <= Date.now()) {
+        return { status: 'expired' };
+      }
+
+      return { status: 'pending', expiresAt: pending.expiresAt };
     },
   };
 
   async function seedBusiness(
-    input: { slug: string; rewardThreshold: number },
+    input: { slug: string; rewardThreshold: number; name?: string; rewardDescription?: string },
   ): Promise<Business & { confirmedBy: string }> {
-    const business: StoredBusiness = { id: randomUUID(), slug: input.slug, rewardThreshold: input.rewardThreshold };
+    const business: StoredBusiness = {
+      id: randomUUID(),
+      slug: input.slug,
+      name: input.name ?? 'Test Business',
+      rewardThreshold: input.rewardThreshold,
+      rewardDescription: input.rewardDescription ?? 'Free item',
+    };
     businesses.set(business.id, business);
     // The real adapter requires confirmedBy to be a staff row belonging to
     // this business (composite FK); this fake doesn't enforce that, but
     // still hands back an id here so contract tests can treat both adapters
     // identically rather than special-casing "confirmedBy" per adapter.
-    return { id: business.id, rewardThreshold: business.rewardThreshold, confirmedBy: randomUUID() };
+    return { ...businessView(business), confirmedBy: randomUUID() };
   }
 
   async function seedExpiredPendingCheckin(input: { businessId: string; phone: string }): Promise<string> {
@@ -142,6 +188,7 @@ export function createInMemoryCheckInPort() {
       phone: input.phone,
       createdAt: new Date(Date.now() - PENDING_CHECKIN_TTL_MS - 1000),
       expiresAt: new Date(Date.now() - 1000),
+      confirmedAt: null,
     });
     return id;
   }

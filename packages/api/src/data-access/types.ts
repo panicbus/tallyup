@@ -42,6 +42,10 @@ export interface PendingCheckinsTable {
   phone: string;
   created_at: CreatedAt;
   expires_at: Date | string;
+  /** Null until confirmed. Never deleted on confirm (unlike the original
+   * W2 design) — this column is the fraud gate now, and its presence is
+   * what the customer-facing status poll (W5) detects. */
+  confirmed_at: Date | string | null;
 }
 
 export interface VisitsTable {

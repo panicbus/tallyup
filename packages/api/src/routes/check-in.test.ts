@@ -173,3 +173,65 @@ describe('GET /businesses/:slug/pending-checkins', () => {
     expect(response.statusCode).toBe(404);
   });
 });
+
+describe('GET /businesses/:slug', () => {
+  it('returns public business info', async () => {
+    const { port, seedBusiness } = createInMemoryCheckInPort();
+    await seedBusiness({ slug: 'test-shop', rewardThreshold: 10, name: 'Test Shop', rewardDescription: 'Free book' });
+    const app = buildTestApp(port);
+
+    const response = await app.inject({ method: 'GET', url: '/businesses/test-shop' });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      name: 'Test Shop',
+      rewardThreshold: 10,
+      rewardDescription: 'Free book',
+    });
+  });
+
+  it('404s for an unknown business slug', async () => {
+    const { port } = createInMemoryCheckInPort();
+    const app = buildTestApp(port);
+
+    const response = await app.inject({ method: 'GET', url: '/businesses/no-such-shop' });
+
+    expect(response.statusCode).toBe(404);
+  });
+});
+
+describe('GET /pending-checkins/:id/status', () => {
+  it('reports pending before confirmation', async () => {
+    const { port, seedBusiness } = createInMemoryCheckInPort();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const pending = await port.createPendingCheckin({ businessId: business.id, phone: '+15551234567' });
+    const app = buildTestApp(port);
+
+    const response = await app.inject({ method: 'GET', url: `/pending-checkins/${pending.id}/status` });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ status: 'pending' });
+  });
+
+  it('reports confirmed with the resulting points, after confirmation', async () => {
+    const { port, seedBusiness } = createInMemoryCheckInPort();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const pending = await port.createPendingCheckin({ businessId: business.id, phone: '+15551234567' });
+    await port.confirmCheckin({ pendingCheckinId: pending.id, confirmedBy: business.confirmedBy });
+    const app = buildTestApp(port);
+
+    const response = await app.inject({ method: 'GET', url: `/pending-checkins/${pending.id}/status` });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ status: 'confirmed', customer: { points: 1 } });
+  });
+
+  it('404s for an unknown pending check-in id', async () => {
+    const { port } = createInMemoryCheckInPort();
+    const app = buildTestApp(port);
+
+    const response = await app.inject({ method: 'GET', url: `/pending-checkins/${randomUUID()}/status` });
+
+    expect(response.statusCode).toBe(404);
+  });
+});

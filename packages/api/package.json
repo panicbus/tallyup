@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@fastify/cors": "^11.3.0",
+    "@fastify/rate-limit": "^11.2.0",
     "@tallyup/shared": "*",
     "fastify": "^5.12.1",
     "kysely": "^0.29.5",
