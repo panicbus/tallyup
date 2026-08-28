@@ -5,6 +5,12 @@ import { confirmCheckin, listPendingCheckins } from '../services/check-in.js';
 import { redeem } from '../services/redemption.js';
 import { getCheckinStatus } from '../services/checkin-status.js';
 import { requireStaff } from './require-staff.js';
+import {
+  ownerByCustomerParam,
+  ownerByPendingCheckinParam,
+  ownerBySlugParam,
+  requireOwnership,
+} from './require-ownership.js';
 import type { AppDependencies } from '../app.js';
 
 const createPendingCheckinBodySchema = z.object({ phone: phoneSchema });
@@ -59,66 +65,56 @@ export async function checkInRoutes(app: FastifyInstance, deps: AppDependencies)
     return reply.code(200).send(result);
   });
 
-  app.get('/businesses/:slug/pending-checkins', { preHandler: requireStaff(deps) }, async (request, reply) => {
-    const { slug } = request.params as { slug: string };
+  app.get(
+    '/businesses/:slug/pending-checkins',
+    { preHandler: [requireStaff(deps), requireOwnership(deps, ownerBySlugParam)] },
+    async (request, reply) => {
+      // Past the guard, the slug's business is the caller's own business.
+      const queue = await listPendingCheckins(deps.checkInPort, request.staff!.business.id);
+      return reply.code(200).send(queue);
+    },
+  );
 
-    const business = await deps.checkInPort.findBusinessBySlug(slug);
-    if (!business) {
-      return reply.code(404).send({ error: 'business_not_found' });
-    }
-    if (business.id !== request.staff!.business.id) {
-      return reply.code(403).send({ error: 'forbidden' });
-    }
+  app.post(
+    '/pending-checkins/:id/confirm',
+    { preHandler: [requireStaff(deps), requireOwnership(deps, ownerByPendingCheckinParam)] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
 
-    const queue = await listPendingCheckins(deps.checkInPort, business.id);
-    return reply.code(200).send(queue);
-  });
+      const result = await confirmCheckin(deps.checkInPort, {
+        pendingCheckinId: id,
+        confirmedBy: request.staff!.id,
+      });
 
-  app.post('/pending-checkins/:id/confirm', { preHandler: requireStaff(deps) }, async (request, reply) => {
-    const { id } = request.params as { id: string };
+      // Still reachable with the guard passed: the row exists and is owned,
+      // but was already confirmed or has expired. That's the fraud gate's
+      // own outcome, not an ownership question.
+      if (result.outcome === 'not_found') {
+        return reply.code(404).send({ error: 'not_found' });
+      }
 
-    const businessId = await deps.checkInPort.findPendingCheckinBusinessId(id);
-    if (businessId === null) {
-      return reply.code(404).send({ error: 'not_found' });
-    }
-    if (businessId !== request.staff!.business.id) {
-      return reply.code(403).send({ error: 'forbidden' });
-    }
+      return reply.code(200).send(result);
+    },
+  );
 
-    const result = await confirmCheckin(deps.checkInPort, {
-      pendingCheckinId: id,
-      confirmedBy: request.staff!.id,
-    });
+  app.post(
+    '/customers/:id/redeem',
+    // missing: 'allow' — an unknown customer id must stay a 409 not_eligible,
+    // indistinguishable by design from "insufficient points", never a 404.
+    { preHandler: [requireStaff(deps), requireOwnership(deps, ownerByCustomerParam, { missing: 'allow' })] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
 
-    if (result.outcome === 'not_found') {
-      return reply.code(404).send({ error: 'not_found' });
-    }
+      const result = await redeem(deps.checkInPort, {
+        customerId: id,
+        confirmedBy: request.staff!.id,
+      });
 
-    return reply.code(200).send(result);
-  });
+      if (result.outcome === 'not_eligible') {
+        return reply.code(409).send({ error: 'not_eligible' });
+      }
 
-  app.post('/customers/:id/redeem', { preHandler: requireStaff(deps) }, async (request, reply) => {
-    const { id } = request.params as { id: string };
-
-    const businessId = await deps.checkInPort.findCustomerBusinessId(id);
-    // Unlike confirm's not_found, an unknown customer id here stays
-    // indistinguishable from "not enough points" (409) — that's the
-    // existing not_eligible contract. A *known* customer at another
-    // business is the new case this route didn't have to consider before
-    // auth existed, and gets its own 403.
-    if (businessId !== null && businessId !== request.staff!.business.id) {
-      return reply.code(403).send({ error: 'forbidden' });
-    }
-
-    const result = await redeem(deps.checkInPort, {
-      customerId: id,
-      confirmedBy: request.staff!.id,
-    });
-
-    if (result.outcome === 'not_eligible') {
-      return reply.code(409).send({ error: 'not_eligible' });
-    }
-
-    return reply.code(200).send(result);
-  });
+      return reply.code(200).send(result);
+    },
+  );
 }
