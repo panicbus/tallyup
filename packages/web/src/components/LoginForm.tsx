@@ -17,17 +17,36 @@ export function LoginForm({ onSubmit, submitting, error, submitLabel = 'Sign in'
   }
 
   return (
-    <form onSubmit={handleSubmit}>
-      {error && <p role="alert">{error}</p>}
-      <label>
-        Email
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-      </label>
-      <label>
-        Password
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} required />
-      </label>
-      <button type="submit" disabled={submitting}>
+    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div className="field">
+        <label htmlFor="email">Email</label>
+        <input
+          id="email"
+          className="input"
+          type="email"
+          placeholder="you@yourshop.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+      </div>
+      <div className="field">
+        <label htmlFor="password">Password</label>
+        <input
+          id="password"
+          className="input"
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
+      </div>
+      {error && (
+        <p role="alert" style={{ color: 'var(--color-accent-700)', fontSize: 13, margin: 0 }}>
+          {error}
+        </p>
+      )}
+      <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>
         {submitLabel}
       </button>
     </form>

@@ -8,6 +8,7 @@ const eligible = {
   maskedPhone: '•••-•••-4567',
   points: 10,
   rewardThreshold: 10,
+  rewardDescription: 'A free used book',
   eligibleForRedemption: true,
 };
 
@@ -18,13 +19,13 @@ describe('ResultCard', () => {
     render(<ResultCard result={notEligible} onRedeem={() => {}} onDismiss={() => {}} redeemDisabled={false} />);
 
     expect(screen.getByText('•••-•••-4567')).toBeTruthy();
-    expect(screen.getByText('3/10')).toBeTruthy();
+    expect(screen.getByText('3 of 10')).toBeTruthy();
   });
 
-  it('offers Redeem when eligible', () => {
+  it('offers Redeem with the reward description when eligible', () => {
     render(<ResultCard result={eligible} onRedeem={() => {}} onDismiss={() => {}} redeemDisabled={false} />);
 
-    expect(screen.getByRole('button', { name: /redeem/i })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /redeem.*a free used book/i })).toBeTruthy();
   });
 
   it('does not offer Redeem when not eligible', () => {

@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import { Dashboard } from './pages/Dashboard';
 import { CheckIn } from './pages/CheckIn';
 import { Login } from './pages/Login';
@@ -8,10 +8,15 @@ import { Settings } from './pages/Settings';
 
 function Home() {
   return (
-    <main>
-      <h1>TallyUp</h1>
-      <p>Scaffold in progress.</p>
-    </main>
+    <div className="page">
+      <div className="page-content" style={{ alignItems: 'center', justifyContent: 'center', flex: 1, textAlign: 'center' }}>
+        <h1>TallyUp</h1>
+        <p className="text-muted">Digital punch cards for shops that don't want an app.</p>
+        <Link to="/login" className="btn btn-primary" style={{ marginTop: 8 }}>
+          Staff sign in
+        </Link>
+      </div>
+    </div>
   );
 }
 

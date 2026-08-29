@@ -25,12 +25,21 @@ export function Signup() {
   }
 
   return (
-    <main>
-      <h1>Create your business account</h1>
-      <LoginForm onSubmit={handleSubmit} submitting={submitting} error={error} submitLabel="Create account" />
-      <p>
-        Already have an account? <Link to="/login">Sign in</Link>
-      </p>
-    </main>
+    <div className="page">
+      <div className="auth-stage">
+        <div className="page-content">
+          <div>
+            <h2 style={{ margin: '0 0 4px' }}>Create your account</h2>
+            <p className="text-muted" style={{ margin: 0 }}>
+              Set up once, the night before you open.
+            </p>
+          </div>
+          <LoginForm onSubmit={handleSubmit} submitting={submitting} error={error} submitLabel="Create account" />
+          <Link to="/login" style={{ fontSize: 13, textAlign: 'center' }}>
+            Already have an account? Sign in
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }

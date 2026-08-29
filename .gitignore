@@ -21,6 +21,9 @@ dist/
 # Playwright MCP browser-testing artifacts (screenshots, snapshots, console logs)
 .playwright-mcp/
 
+# Claude Design handoff files (screens, uploads, exports) — reference only, not shipped code
+design/
+
 # Logs
 *.log
 

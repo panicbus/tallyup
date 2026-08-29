@@ -12,29 +12,30 @@ const business = {
 
 describe('SettingsForm', () => {
   it('pre-fills fields from the current business', () => {
-    render(<SettingsForm business={business} onSubmit={() => {}} submitting={false} />);
+    render(<SettingsForm business={business} onSubmit={() => {}} submitting={false} saved={false} />);
 
     expect(screen.getByLabelText(/business name/i)).toHaveValue('Demo Bookstore');
     expect(screen.getByLabelText(/punches needed/i)).toHaveValue(10);
-    expect(screen.getByLabelText(/reward description/i)).toHaveValue('A free used book');
+    expect(screen.getByLabelText(/reward, in your words/i)).toHaveValue('A free used book');
   });
 
-  it('shows the check-in URL as read-only, not an editable field', () => {
-    render(<SettingsForm business={business} onSubmit={() => {}} submitting={false} />);
+  it('shows the check-in URL locked, not editable', () => {
+    render(<SettingsForm business={business} onSubmit={() => {}} submitting={false} saved={false} />);
 
-    expect(screen.getByText('demo-bookstore')).toBeTruthy();
-    expect(screen.queryByLabelText(/url/i)).toBeNull();
+    const urlField = screen.getByLabelText(/check-in url/i);
+    expect(urlField).toHaveValue('demo-bookstore');
+    expect(urlField).toBeDisabled();
   });
 
   it('warns that lowering the threshold makes customers instantly eligible', () => {
-    render(<SettingsForm business={business} onSubmit={() => {}} submitting={false} />);
+    render(<SettingsForm business={business} onSubmit={() => {}} submitting={false} saved={false} />);
 
     expect(screen.getByText(/instantly eligible/i)).toBeTruthy();
   });
 
   it('submits the edited values', async () => {
     const onSubmit = vi.fn();
-    render(<SettingsForm business={business} onSubmit={onSubmit} submitting={false} />);
+    render(<SettingsForm business={business} onSubmit={onSubmit} submitting={false} saved={false} />);
 
     const thresholdField = screen.getByLabelText(/punches needed/i);
     await userEvent.clear(thresholdField);
@@ -49,14 +50,22 @@ describe('SettingsForm', () => {
   });
 
   it('disables the button while submitting', () => {
-    render(<SettingsForm business={business} onSubmit={() => {}} submitting={true} />);
+    render(<SettingsForm business={business} onSubmit={() => {}} submitting={true} saved={false} />);
 
     expect(screen.getByRole('button', { name: /save/i })).toBeDisabled();
   });
 
   it('shows an error message when given one', () => {
-    render(<SettingsForm business={business} onSubmit={() => {}} submitting={false} error="Something went wrong." />);
+    render(
+      <SettingsForm business={business} onSubmit={() => {}} submitting={false} saved={false} error="Something went wrong." />,
+    );
 
     expect(screen.getByRole('alert')).toHaveTextContent('Something went wrong.');
+  });
+
+  it('shows a saved confirmation after a successful save', () => {
+    render(<SettingsForm business={business} onSubmit={() => {}} submitting={false} saved={true} />);
+
+    expect(screen.getByText(/^saved\.?$/i)).toBeTruthy();
   });
 });

@@ -15,7 +15,7 @@ export function Login() {
 
     const { error: signInError } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (signInError) {
-      setError('Invalid email or password.');
+      setError('Incorrect email or password.');
       setSubmitting(false);
       return;
     }
@@ -25,12 +25,16 @@ export function Login() {
   }
 
   return (
-    <main>
-      <h1>Staff sign in</h1>
-      <LoginForm onSubmit={handleSubmit} submitting={submitting} error={error} />
-      <p>
-        New shop? <Link to="/signup">Create an account</Link>
-      </p>
-    </main>
+    <div className="page">
+      <div className="auth-stage">
+        <div className="page-content">
+          <h2 style={{ margin: 0 }}>Sign in</h2>
+          <LoginForm onSubmit={handleSubmit} submitting={submitting} error={error} />
+          <Link to="/signup" style={{ fontSize: 13, textAlign: 'center' }}>
+            Need an account? Create one
+          </Link>
+        </div>
+      </div>
+    </div>
   );
 }

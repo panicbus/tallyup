@@ -1,13 +1,18 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Pencil } from 'lucide-react';
 import { getMe, updateBusiness } from '../lib/api';
 import type { MeResponse } from '../lib/api';
+import { supabaseClient } from '../lib/supabase';
 import { SettingsForm, type SettingsFormValues } from '../components/SettingsForm';
+
+type Mode = 'view' | 'edit';
 
 export function Settings() {
   const { slug } = useParams() as { slug: string };
   const navigate = useNavigate();
   const [me, setMe] = useState<MeResponse | null>(null);
+  const [mode, setMode] = useState<Mode>('view');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [saved, setSaved] = useState(false);
@@ -42,22 +47,98 @@ export function Settings() {
     }
   }
 
+  async function handleSignOut() {
+    await supabaseClient.auth.signOut();
+    navigate('/login');
+  }
+
   if (!me) {
     return (
-      <main>
-        <p>Loading…</p>
-      </main>
+      <div className="page">
+        <div className="page-content" style={{ alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+          <p className="text-muted">Loading…</p>
+        </div>
+      </div>
     );
   }
 
   return (
-    <main>
-      <h1>Business settings</h1>
-      <p>
-        <Link to={`/dashboard/${slug}`}>Back to dashboard</Link>
-      </p>
-      {saved && <p role="status">Saved.</p>}
-      <SettingsForm business={me.business} onSubmit={handleSubmit} submitting={submitting} error={error} />
-    </main>
+    <div className="page">
+      <div className="page-content">
+        <button
+          type="button"
+          onClick={() => navigate(`/dashboard/${slug}`)}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--color-accent-700)',
+            fontSize: 13,
+            padding: 0,
+            textAlign: 'left',
+            cursor: 'pointer',
+            alignSelf: 'flex-start',
+          }}
+        >
+          ← Back to queue
+        </button>
+
+        {mode === 'view' ? (
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <h2 style={{ margin: 0 }}>Settings</h2>
+              <button
+                type="button"
+                className="btn btn-primary"
+                style={{ fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}
+                onClick={() => {
+                  setSaved(false);
+                  setMode('edit');
+                }}
+              >
+                <Pencil size={14} /> Edit
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>Business name</div>
+                <div style={{ fontSize: 15, color: 'var(--color-neutral-500)' }}>{me.business.name}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>Punches needed</div>
+                <div style={{ fontSize: 15 }}>{me.business.rewardThreshold}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>
+                  Reward, in your words
+                </div>
+                <div style={{ fontSize: 15 }}>{me.business.rewardDescription}</div>
+              </div>
+              <div>
+                <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>Check-in URL</div>
+                <div style={{ fontSize: 15, fontFamily: 'ui-monospace, monospace', color: 'var(--color-neutral-500)' }}>
+                  {window.location.host}/checkin/{me.business.slug}
+                </div>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={handleSignOut}
+              className="btn btn-secondary"
+              style={{ alignSelf: 'flex-start', marginTop: 8 }}
+            >
+              Sign out
+            </button>
+          </>
+        ) : (
+          <SettingsForm
+            business={me.business}
+            onSubmit={handleSubmit}
+            submitting={submitting}
+            saved={saved}
+            error={error}
+          />
+        )}
+      </div>
+    </div>
   );
 }
