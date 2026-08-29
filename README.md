@@ -65,14 +65,54 @@ After seeding (`npm run db:seed`), the demo business's pages are at:
     http://localhost:5173/dashboard/demo-bookstore   # staff
     http://localhost:5173/checkin/demo-bookstore     # customer
 
+## Deploying
+`api` on Render, `web` on Vercel, Postgres on the same Supabase project
+already used for Auth. `api` and `web` each need to know the other's URL
+(`CORS_ORIGIN`, `VITE_API_URL`), so deploy in this order to avoid a
+chicken-and-egg wait:
+
+1. **Migrate the production database once**, from your machine, pointed at
+   Supabase instead of Docker:
+
+       DATABASE_URL="<supabase-connection-string>" npm run db:migrate
+
+   Get the connection string from the Supabase dashboard: Project Settings
+   -> Database -> Connection string -> **Transaction pooler** URI (not the
+   direct connection — Render's compute is ephemeral/serverless-adjacent,
+   and the pooler is what Supabase recommends for that). Don't run
+   `db:seed` against production — real shops onboard themselves via
+   `/signup`, there's no need for a seeded demo business there.
+
+2. **Render** (api): New -> Blueprint, connect this repo — `render.yaml` at
+   the root defines the service. It'll prompt for four env vars:
+   `DATABASE_URL` (from step 1), `SUPABASE_URL`, `SUPABASE_ANON_KEY` (same
+   values as your local `.env`), and `CORS_ORIGIN` (leave as a placeholder
+   like `http://localhost:5173` for now — you'll fix it in step 4). Once
+   live, confirm `https://<your-service>.onrender.com/health` returns
+   `{"status":"ok"}`.
+
+3. **Vercel** (web): New Project, import this repo, set **Root Directory**
+   to `packages/web` (Vercel auto-detects the npm workspace and installs
+   from the true repo root regardless). Framework preset (Vite) and build
+   output are auto-detected; `packages/web/vercel.json` adds the SPA
+   rewrite client-side routing needs. Env vars: `VITE_SUPABASE_URL`,
+   `VITE_SUPABASE_ANON_KEY` (same as local), and `VITE_API_URL` set to the
+   Render URL from step 2.
+
+4. **Go back to Render** and update `CORS_ORIGIN` to the real Vercel URL
+   (no trailing slash). Changing an env var triggers an automatic
+   redeploy.
+
+5. **Smoke test**, for real: visit the Vercel URL, sign up, complete
+   onboarding, open the resulting `/checkin/:slug` link in a second
+   tab (or scan the QR code with a phone), submit a check-in, and confirm
+   it from the dashboard tab — the full loop, on the actual deployed
+   infrastructure.
+
 ## Status
-W8 (business onboarding) complete: `/signup` creates a Supabase Auth
-account and, on first login with no linked business yet, routes to
-`/onboarding` — name, reward threshold/description, and a slug
-auto-derived from the name (editable) — which atomically creates the
-business and its owner staff row, then shows a QR code (`qrcode.react`,
-client-side, no image storage) linking to `/checkin/:slug`.
-`/dashboard/:slug/settings` edits name/threshold/description (not the
-slug, which is printed on signage). `POST /businesses` is gated by a
-lighter `requireAuthenticatedIdentity` check (valid Supabase session,
-no staff row required yet) rather than `requireStaff`.
+W7 (deploy) config complete: `render.yaml` (api) and `packages/web/vercel.json`
+(web, SPA rewrite) are in place, `api`'s start script no longer depends on a
+compiled `dist/` (`@tallyup/shared` ships TS source, so production runs the
+same `tsx`-based entrypoint dev does — a plain `tsc` build can't resolve it).
+See "Deploying" above. Live deploy itself is a manual dashboard step and
+hasn't happened yet as of this note.

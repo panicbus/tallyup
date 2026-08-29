@@ -5,8 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx watch src/main.ts",
-    "build": "tsc -p .",
-    "start": "node dist/main.js",
+    "start": "tsx src/main.ts",
     "typecheck": "tsc --noEmit -p .",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -21,11 +20,11 @@
     "@tallyup/shared": "*",
     "fastify": "^5.12.1",
     "kysely": "^0.29.5",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "tsx": "^4.23.12"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
-    "@types/pg": "^8.23.1",
-    "tsx": "^4.23.12"
+    "@types/pg": "^8.23.1"
   }
 }
