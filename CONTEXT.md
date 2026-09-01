@@ -9,8 +9,14 @@ alternatives are ambiguous in this domain, not because they read badly.
 A single shop — the tenant. Every other record below belongs to exactly one.
 Identified publicly by its **slug**, which appears in the check-in URL and is
 therefore printed on physical signage: it is chosen once during onboarding and
-is deliberately **not editable afterwards**, unlike name, reward threshold, and
-reward description.
+is deliberately **not editable afterwards**, unlike name, reward threshold,
+reward description, and logo.
+
+The **logo** is optional. Its bytes never pass through the API — the browser
+uploads them straight to Supabase Storage and sends back a URL, which the API
+validates as belonging to that caller's own storage folder before storing it
+(see [ADR-0001](docs/adr/0001-business-logo-storage.md)). Because it is shown
+to Customers on the check-in page and punch card, it is publicly readable.
 
 ## Staff
 

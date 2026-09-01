@@ -40,6 +40,7 @@ export function createInMemoryCheckInPort() {
       name: business.name,
       rewardThreshold: business.rewardThreshold,
       rewardDescription: business.rewardDescription,
+      logoUrl: business.logoUrl,
     };
   }
 
@@ -174,7 +175,13 @@ export function createInMemoryCheckInPort() {
   };
 
   async function seedBusiness(
-    input: { slug: string; rewardThreshold: number; name?: string; rewardDescription?: string },
+    input: {
+      slug: string;
+      rewardThreshold: number;
+      name?: string;
+      rewardDescription?: string;
+      logoUrl?: string | null;
+    },
   ): Promise<Business & { confirmedBy: string }> {
     const business: StoredBusiness = {
       id: randomUUID(),
@@ -182,6 +189,7 @@ export function createInMemoryCheckInPort() {
       name: input.name ?? 'Test Business',
       rewardThreshold: input.rewardThreshold,
       rewardDescription: input.rewardDescription ?? 'Free item',
+      logoUrl: input.logoUrl ?? null,
     };
     businesses.set(business.id, business);
     // The real adapter requires confirmedBy to be a staff row belonging to

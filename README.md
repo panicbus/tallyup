@@ -83,6 +83,22 @@ chicken-and-egg wait:
    `db:seed` against production — real shops onboard themselves via
    `/signup`, there's no need for a seeded demo business there.
 
+   **Also create the logo storage bucket once**, in the same Supabase
+   project (Storage -> New bucket): name it `business-logos` and mark it
+   **public**. Then add two policies on it, both targeting the
+   `authenticated` role, one for `INSERT` and one for `UPDATE`, sharing
+   this definition:
+
+       bucket_id = 'business-logos' AND (storage.foldername(name))[1] = auth.uid()::text
+
+   That confines each signed-in user to writing inside a folder named for
+   their own auth user id, which is the path scheme
+   `packages/api/src/services/logo-url.ts` validates against. No SELECT
+   policy is needed — public read comes from the bucket's public flag. See
+   [ADR-0001](docs/adr/0001-business-logo-storage.md) for why logos upload
+   browser-direct rather than through the api. Local development uses this
+   same hosted bucket, exactly as local Auth uses the hosted Auth server.
+
 2. **Render** (api): New -> Blueprint, connect this repo — `render.yaml` at
    the root defines the service. It'll prompt for four env vars:
    `DATABASE_URL` (from step 1), `SUPABASE_URL`, `SUPABASE_ANON_KEY` (same

@@ -30,6 +30,7 @@ export function createInMemoryStaffPort() {
           slug: `test-business-${randomUUID()}`,
           rewardThreshold: 10,
           rewardDescription: 'Free item',
+          logoUrl: null,
         },
       };
       staffByAuthUserId.set(input.authUserId, staff);

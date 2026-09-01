@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Kysely } from 'kysely';
+import { vi } from 'vitest';
 import { describe, expect, test } from '../test-support/integration-test.js';
 import { buildApp } from '../app.js';
 import { createKyselyCheckInPort } from '../data-access/kysely-check-in-port.js';
@@ -38,6 +39,83 @@ describe('POST /businesses', () => {
 
     const meResponse = await app.inject({ method: 'GET', url: '/me', headers });
     expect(meResponse.json()).toMatchObject({ email: 'owner@example.com', role: 'owner', business: { slug } });
+  });
+
+  test('creates a business with no logo when none is supplied', async ({ realDb }) => {
+    const { app, issueToken } = buildOnboardingApp(realDb);
+    const authUserId = randomUUID();
+    const headers = { authorization: `Bearer ${issueToken({ userId: authUserId, email: 'owner@example.com' })}` };
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/businesses',
+      headers,
+      payload: {
+        name: 'No Logo Shop',
+        slug: `no-logo-${randomUUID()}`,
+        rewardThreshold: 8,
+        rewardDescription: 'Free coffee',
+      },
+    });
+
+    expect(response.json().business).toMatchObject({ logoUrl: null });
+  });
+
+  test('persists a logo uploaded during onboarding', async ({ realDb }) => {
+    vi.stubEnv('SUPABASE_URL', 'https://test-project.supabase.co');
+    try {
+      const { app, issueToken } = buildOnboardingApp(realDb);
+      const authUserId = randomUUID();
+      const headers = { authorization: `Bearer ${issueToken({ userId: authUserId, email: 'owner@example.com' })}` };
+      // The auth user exists before the business does, which is exactly why
+      // storage paths key on it — onboarding can upload before this call.
+      const logoUrl = `https://test-project.supabase.co/storage/v1/object/public/business-logos/${authUserId}/logo.png`;
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/businesses',
+        headers,
+        payload: {
+          name: 'Logo Shop',
+          slug: `logo-shop-${randomUUID()}`,
+          rewardThreshold: 8,
+          rewardDescription: 'Free coffee',
+          logoUrl,
+        },
+      });
+
+      expect(response.statusCode).toBe(201);
+      expect(response.json().business).toMatchObject({ logoUrl });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  test('400s for a logo URL in another user’s storage folder', async ({ realDb }) => {
+    vi.stubEnv('SUPABASE_URL', 'https://test-project.supabase.co');
+    try {
+      const { app, issueToken } = buildOnboardingApp(realDb);
+      const headers = { authorization: `Bearer ${issueToken({ userId: randomUUID(), email: 'owner@example.com' })}` };
+      const foreign = `https://test-project.supabase.co/storage/v1/object/public/business-logos/${randomUUID()}/logo.png`;
+
+      const response = await app.inject({
+        method: 'POST',
+        url: '/businesses',
+        headers,
+        payload: {
+          name: 'Sneaky Shop',
+          slug: `sneaky-${randomUUID()}`,
+          rewardThreshold: 8,
+          rewardDescription: 'Free coffee',
+          logoUrl: foreign,
+        },
+      });
+
+      expect(response.statusCode).toBe(400);
+      expect(response.json()).toEqual({ error: 'invalid_logo_url' });
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   test('401s with no Authorization header', async ({ realDb }) => {

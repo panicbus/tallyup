@@ -3,6 +3,9 @@ export interface Business {
   name: string;
   rewardThreshold: number;
   rewardDescription: string;
+  /** Public URL of the shop's logo, or null if unset. Reaches customers
+   * (the check-in page and punch card), so it must stay publicly readable. */
+  logoUrl: string | null;
 }
 
 export interface Customer {

@@ -3,7 +3,11 @@ import type { Business, CheckInPort } from '../data-access/check-in-port.js';
 
 export interface CheckInPortContractSetup {
   port: CheckInPort;
-  seedBusiness(input: { slug: string; rewardThreshold: number }): Promise<Business & { confirmedBy: string }>;
+  seedBusiness(input: {
+    slug: string;
+    rewardThreshold: number;
+    logoUrl?: string | null;
+  }): Promise<Business & { confirmedBy: string }>;
   seedExpiredPendingCheckin(input: { businessId: string; phone: string }): Promise<string>;
 }
 
@@ -100,7 +104,17 @@ export function runCheckInPortContractTests<Fixtures extends { realDb?: unknown 
         name: business.name,
         rewardThreshold: 7,
         rewardDescription: business.rewardDescription,
+        logoUrl: null,
       });
+    });
+
+    test('findBusinessBySlug round-trips a business logo URL', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const slug = `contract-${crypto.randomUUID()}`;
+      const logoUrl = 'https://example.supabase.co/storage/v1/object/public/business-logos/u/logo.png';
+      await seedBusiness({ slug, rewardThreshold: 7, logoUrl });
+
+      expect(await port.findBusinessBySlug(slug)).toMatchObject({ logoUrl });
     });
 
     test('redeems exactly at the threshold, applying rollover', async ({ realDb }) => {

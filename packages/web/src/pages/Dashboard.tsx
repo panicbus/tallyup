@@ -146,10 +146,19 @@ export function Dashboard() {
               height: 28,
               borderRadius: 8,
               flex: 'none',
+              overflow: 'hidden',
               background: 'var(--color-surface)',
-              border: '1px dashed var(--color-neutral-400)',
+              border: me.business.logoUrl ? 'none' : '1px dashed var(--color-neutral-400)',
             }}
-          />
+          >
+            {me.business.logoUrl && (
+              <img
+                src={me.business.logoUrl}
+                alt=""
+                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+              />
+            )}
+          </div>
           <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700 }}>{me.business.name}</div>
 
           <div className="nav-tabs">

@@ -117,6 +117,24 @@ export function Settings() {
                   <div style={{ fontSize: 15 }}>{me.business.rewardDescription}</div>
                 </div>
                 <div>
+                  <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>Business logo</div>
+                  {me.business.logoUrl ? (
+                    <img
+                      src={me.business.logoUrl}
+                      alt="Business logo"
+                      style={{
+                        width: 52,
+                        height: 52,
+                        borderRadius: 12,
+                        objectFit: 'cover',
+                        background: 'var(--color-surface)',
+                      }}
+                    />
+                  ) : (
+                    <div style={{ fontSize: 15, color: 'var(--color-neutral-500)' }}>Not set</div>
+                  )}
+                </div>
+                <div>
                   <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>Check-in URL</div>
                   <div style={{ fontSize: 15, fontFamily: 'ui-monospace, monospace', color: 'var(--color-neutral-500)' }}>
                     {window.location.host}/checkin/{me.business.slug}

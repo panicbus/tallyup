@@ -7,6 +7,7 @@ export interface OnboardingFormValues {
   slug: string;
   rewardThreshold: number;
   rewardDescription: string;
+  logoUrl: string | null;
 }
 
 interface OnboardingFormProps {
@@ -24,6 +25,7 @@ export function OnboardingForm({ onSubmit, submitting, error, slugError }: Onboa
   const [slugEdited, setSlugEdited] = useState(false);
   const [rewardThreshold, setRewardThreshold] = useState('10');
   const [rewardDescription, setRewardDescription] = useState('');
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
 
   function handleNameChange(value: string) {
     setName(value);
@@ -37,7 +39,7 @@ export function OnboardingForm({ onSubmit, submitting, error, slugError }: Onboa
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    onSubmit({ name, slug, rewardThreshold: Number(rewardThreshold), rewardDescription });
+    onSubmit({ name, slug, rewardThreshold: Number(rewardThreshold), rewardDescription, logoUrl });
   }
 
   return (
@@ -85,7 +87,7 @@ export function OnboardingForm({ onSubmit, submitting, error, slugError }: Onboa
         />
       </div>
 
-      <LogoPicker />
+      <LogoPicker value={logoUrl} onChange={setLogoUrl} />
 
       <div className="field">
         <label htmlFor="check-in-url">Check-in URL</label>

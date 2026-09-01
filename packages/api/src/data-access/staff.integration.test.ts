@@ -42,6 +42,7 @@ describe('findStaffByAuthUserId', () => {
         slug: business.slug,
         rewardThreshold: business.reward_threshold,
         rewardDescription: business.reward_description,
+        logoUrl: null,
       },
     });
   });

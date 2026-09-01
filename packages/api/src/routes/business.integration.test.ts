@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import type { Kysely } from 'kysely';
+import { afterEach, beforeEach, vi } from 'vitest';
 import { describe, expect, test } from '../test-support/integration-test.js';
 import { buildApp } from '../app.js';
 import { createKyselyCheckInPort } from '../data-access/kysely-check-in-port.js';
@@ -7,7 +8,7 @@ import { createKyselyStaffPort } from '../data-access/staff-port.js';
 import { createInMemoryAuthPort } from '../test-support/in-memory-auth-port.js';
 import type { Database } from '../data-access/types.js';
 
-async function seedBusinessAndStaff(db: Kysely<Database>) {
+async function seedBusinessAndStaff(db: Kysely<Database>, logoUrl: string | null = null) {
   const business = await db
     .insertInto('businesses')
     .values({
@@ -15,6 +16,7 @@ async function seedBusinessAndStaff(db: Kysely<Database>) {
       slug: `settings-shop-${randomUUID()}`,
       reward_threshold: 10,
       reward_description: 'Free item',
+      logo_url: logoUrl,
     })
     .returningAll()
     .executeTakeFirstOrThrow();
@@ -117,5 +119,78 @@ describe('PATCH /businesses/:slug', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.json()).toMatchObject({ slug: business.slug });
+  });
+});
+
+/**
+ * The three states of `logoUrl` on a settings save. Omitted must not clear
+ * an existing logo — that's the case a naive `set({ logo_url: undefined })`
+ * would silently get wrong on every save that didn't mention a logo.
+ */
+describe('PATCH /businesses/:slug logo persistence', () => {
+  const SUPABASE_URL = 'https://test-project.supabase.co';
+  const baseBody = { name: 'New Name', rewardThreshold: 5, rewardDescription: 'New reward' };
+
+  beforeEach(() => {
+    vi.stubEnv('SUPABASE_URL', SUPABASE_URL);
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  function logoUrlFor(authUserId: string): string {
+    return `${SUPABASE_URL}/storage/v1/object/public/business-logos/${authUserId}/logo.png`;
+  }
+
+  test('stores a logo URL belonging to the caller', async ({ realDb }) => {
+    const { business, authUserId } = await seedBusinessAndStaff(realDb);
+    const { app, issueToken } = buildBusinessApp(realDb);
+    const headers = { authorization: `Bearer ${issueToken({ userId: authUserId, email: 'owner@example.com' })}` };
+    const logoUrl = logoUrlFor(authUserId);
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/businesses/${business.slug}`,
+      headers,
+      payload: { ...baseBody, logoUrl },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ logoUrl });
+  });
+
+  test('an explicit null clears an existing logo', async ({ realDb }) => {
+    const seededLogo = 'https://test-project.supabase.co/storage/v1/object/public/business-logos/x/old.png';
+    const { business, authUserId } = await seedBusinessAndStaff(realDb, seededLogo);
+    const { app, issueToken } = buildBusinessApp(realDb);
+    const headers = { authorization: `Bearer ${issueToken({ userId: authUserId, email: 'owner@example.com' })}` };
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/businesses/${business.slug}`,
+      headers,
+      payload: { ...baseBody, logoUrl: null },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ logoUrl: null });
+  });
+
+  test('omitting logoUrl leaves an existing logo untouched', async ({ realDb }) => {
+    const seededLogo = 'https://test-project.supabase.co/storage/v1/object/public/business-logos/x/keep.png';
+    const { business, authUserId } = await seedBusinessAndStaff(realDb, seededLogo);
+    const { app, issueToken } = buildBusinessApp(realDb);
+    const headers = { authorization: `Bearer ${issueToken({ userId: authUserId, email: 'owner@example.com' })}` };
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: `/businesses/${business.slug}`,
+      headers,
+      payload: baseBody,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({ logoUrl: seededLogo });
   });
 });

@@ -11,6 +11,7 @@ export interface StaffContext {
     slug: string;
     rewardThreshold: number;
     rewardDescription: string;
+    logoUrl: string | null;
   };
 }
 
@@ -36,6 +37,7 @@ export async function findStaffByAuthUserId(db: Kysely<Database>, authUserId: st
       'businesses.slug as businessSlug',
       'businesses.reward_threshold as rewardThreshold',
       'businesses.reward_description as rewardDescription',
+      'businesses.logo_url as logoUrl',
     ])
     .where('staff.auth_user_id', '=', authUserId)
     .executeTakeFirst();
@@ -52,6 +54,7 @@ export async function findStaffByAuthUserId(db: Kysely<Database>, authUserId: st
       slug: row.businessSlug,
       rewardThreshold: row.rewardThreshold,
       rewardDescription: row.rewardDescription,
+      logoUrl: row.logoUrl,
     },
   };
 }

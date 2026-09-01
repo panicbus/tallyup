@@ -4,8 +4,20 @@ import type { Business, CheckInPort, ConfirmCheckinResult, RedeemResult } from '
 
 const PENDING_CHECKIN_TTL_MS = 20 * 60_000;
 
-function toBusiness(row: { id: string; name: string; reward_threshold: number; reward_description: string }): Business {
-  return { id: row.id, name: row.name, rewardThreshold: row.reward_threshold, rewardDescription: row.reward_description };
+function toBusiness(row: {
+  id: string;
+  name: string;
+  reward_threshold: number;
+  reward_description: string;
+  logo_url: string | null;
+}): Business {
+  return {
+    id: row.id,
+    name: row.name,
+    rewardThreshold: row.reward_threshold,
+    rewardDescription: row.reward_description,
+    logoUrl: row.logo_url,
+  };
 }
 
 export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
@@ -13,7 +25,7 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
     async findBusinessBySlug(slug) {
       const row = await db
         .selectFrom('businesses')
-        .select(['id', 'name', 'reward_threshold', 'reward_description'])
+        .select(['id', 'name', 'reward_threshold', 'reward_description', 'logo_url'])
         .where('slug', '=', slug)
         .executeTakeFirst();
 
@@ -78,7 +90,7 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
 
         const business = await trx
           .selectFrom('businesses')
-          .select(['id', 'name', 'reward_threshold', 'reward_description'])
+          .select(['id', 'name', 'reward_threshold', 'reward_description', 'logo_url'])
           .where('id', '=', confirmed.business_id)
           .executeTakeFirstOrThrow();
 
@@ -104,7 +116,7 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
 
         const business = await trx
           .selectFrom('businesses')
-          .select(['id', 'name', 'reward_threshold', 'reward_description'])
+          .select(['id', 'name', 'reward_threshold', 'reward_description', 'logo_url'])
           .where('id', '=', customer.business_id)
           .executeTakeFirstOrThrow();
 
@@ -170,7 +182,7 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
       if (pending.confirmed_at !== null) {
         const business = await db
           .selectFrom('businesses')
-          .select(['id', 'name', 'reward_threshold', 'reward_description'])
+          .select(['id', 'name', 'reward_threshold', 'reward_description', 'logo_url'])
           .where('id', '=', pending.business_id)
           .executeTakeFirstOrThrow();
 

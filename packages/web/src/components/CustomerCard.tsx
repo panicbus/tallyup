@@ -4,6 +4,7 @@ interface CustomerCardProps {
   rewardThreshold: number;
   rewardDescription: string;
   eligibleForRedemption: boolean;
+  logoUrl?: string | null;
 }
 
 export function CustomerCard({
@@ -12,6 +13,7 @@ export function CustomerCard({
   rewardThreshold,
   rewardDescription,
   eligibleForRedemption,
+  logoUrl,
 }: CustomerCardProps) {
   const filled = Math.min(points, rewardThreshold);
 
@@ -54,8 +56,27 @@ export function CustomerCard({
             gap: 18,
           }}
         >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-            <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 700, fontSize: 18 }}>{businessName}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+            <span
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 10,
+                fontFamily: 'var(--font-heading)',
+                fontWeight: 700,
+                fontSize: 18,
+                textAlign: 'left',
+              }}
+            >
+              {logoUrl && (
+                <img
+                  src={logoUrl}
+                  alt=""
+                  style={{ width: 28, height: 28, borderRadius: 8, objectFit: 'cover', flex: 'none' }}
+                />
+              )}
+              {businessName}
+            </span>
             <span
               style={{
                 fontFamily: 'var(--font-heading)',

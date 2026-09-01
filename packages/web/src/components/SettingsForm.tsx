@@ -7,12 +7,14 @@ interface SettingsFormBusiness {
   slug: string;
   rewardThreshold: number;
   rewardDescription: string;
+  logoUrl: string | null;
 }
 
 export interface SettingsFormValues {
   name: string;
   rewardThreshold: number;
   rewardDescription: string;
+  logoUrl: string | null;
 }
 
 interface SettingsFormProps {
@@ -27,10 +29,11 @@ export function SettingsForm({ business, onSubmit, submitting, saved, error }: S
   const [name, setName] = useState(business.name);
   const [rewardThreshold, setRewardThreshold] = useState(String(business.rewardThreshold));
   const [rewardDescription, setRewardDescription] = useState(business.rewardDescription);
+  const [logoUrl, setLogoUrl] = useState<string | null>(business.logoUrl);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    onSubmit({ name, rewardThreshold: Number(rewardThreshold), rewardDescription });
+    onSubmit({ name, rewardThreshold: Number(rewardThreshold), rewardDescription, logoUrl });
   }
 
   return (
@@ -80,7 +83,7 @@ export function SettingsForm({ business, onSubmit, submitting, saved, error }: S
         />
       </div>
 
-      <LogoPicker />
+      <LogoPicker value={logoUrl} onChange={setLogoUrl} />
 
       <div className="field">
         <label htmlFor="settings-check-in-url">Check-in URL</label>

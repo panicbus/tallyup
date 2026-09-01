@@ -4,7 +4,10 @@ import { runCheckInPortContractTests } from '../test-support/check-in-port-contr
 import { createKyselyCheckInPort } from './kysely-check-in-port.js';
 import type { Database } from './types.js';
 
-async function seedBusiness(db: Kysely<Database>, input: { slug: string; rewardThreshold: number }) {
+async function seedBusiness(
+  db: Kysely<Database>,
+  input: { slug: string; rewardThreshold: number; logoUrl?: string | null },
+) {
   const business = await db
     .insertInto('businesses')
     .values({
@@ -12,6 +15,7 @@ async function seedBusiness(db: Kysely<Database>, input: { slug: string; rewardT
       slug: input.slug,
       reward_threshold: input.rewardThreshold,
       reward_description: 'Free item',
+      logo_url: input.logoUrl ?? null,
     })
     .returningAll()
     .executeTakeFirstOrThrow();
@@ -27,6 +31,7 @@ async function seedBusiness(db: Kysely<Database>, input: { slug: string; rewardT
     name: business.name,
     rewardThreshold: business.reward_threshold,
     rewardDescription: business.reward_description,
+    logoUrl: business.logo_url,
     confirmedBy: staff.id,
   };
 }

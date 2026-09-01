@@ -7,7 +7,7 @@ import { createKyselyStaffPort } from '../data-access/staff-port.js';
 import { createInMemoryAuthPort } from '../test-support/in-memory-auth-port.js';
 import type { Database } from '../data-access/types.js';
 
-async function seedBusinessWithStaff(db: Kysely<Database>, authUserId: string) {
+async function seedBusinessWithStaff(db: Kysely<Database>, authUserId: string, logoUrl: string | null = null) {
   const business = await db
     .insertInto('businesses')
     .values({
@@ -15,6 +15,7 @@ async function seedBusinessWithStaff(db: Kysely<Database>, authUserId: string) {
       slug: `me-route-${randomUUID()}`,
       reward_threshold: 10,
       reward_description: 'Free item',
+      logo_url: logoUrl,
     })
     .returningAll()
     .executeTakeFirstOrThrow();
@@ -52,8 +53,25 @@ describe('GET /me', () => {
         slug: business.slug,
         rewardThreshold: business.reward_threshold,
         rewardDescription: business.reward_description,
+        logoUrl: null,
       },
     });
+  });
+
+  test('carries the business logo URL through to the dashboard', async ({ realDb }) => {
+    const authUserId = randomUUID();
+    const logoUrl = 'https://test-project.supabase.co/storage/v1/object/public/business-logos/u/logo.png';
+    await seedBusinessWithStaff(realDb, authUserId, logoUrl);
+    const { port: authPort, issueToken } = createInMemoryAuthPort();
+    const token = issueToken({ userId: authUserId, email: 'owner@example.com' });
+    const app = buildApp(
+      { checkInPort: createKyselyCheckInPort(realDb), staffPort: createKyselyStaffPort(realDb), authPort, db: realDb },
+      { logger: false },
+    );
+
+    const response = await app.inject({ method: 'GET', url: '/me', headers: { authorization: `Bearer ${token}` } });
+
+    expect(response.json().business).toMatchObject({ logoUrl });
   });
 
   test('401s with no Authorization header', async ({ realDb }) => {

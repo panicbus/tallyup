@@ -7,6 +7,7 @@ export interface OnboardedBusiness {
   slug: string;
   rewardThreshold: number;
   rewardDescription: string;
+  logoUrl: string | null;
 }
 
 export type CreateBusinessResult =
@@ -21,6 +22,9 @@ export interface CreateBusinessInput {
   rewardDescription: string;
   authUserId: string;
   email: string;
+  /** Already validated as belonging to this caller's own storage folder by
+   * the route — see services/logo-url.ts. Absent when they skipped it. */
+  logoUrl?: string | null;
 }
 
 /**
@@ -62,6 +66,7 @@ export async function createBusinessWithOwner(
         slug: input.slug,
         reward_threshold: input.rewardThreshold,
         reward_description: input.rewardDescription,
+        logo_url: input.logoUrl ?? null,
       })
       .returningAll()
       .executeTakeFirstOrThrow();
@@ -79,6 +84,7 @@ export async function createBusinessWithOwner(
         slug: business.slug,
         rewardThreshold: business.reward_threshold,
         rewardDescription: business.reward_description,
+        logoUrl: business.logo_url,
       },
     };
   });

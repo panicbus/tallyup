@@ -3,6 +3,16 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { OnboardingForm } from './OnboardingForm';
 
+// LogoPicker uploads on selection; stub the storage round trip so these
+// tests stay about the form, not Supabase.
+vi.mock('../lib/logo-upload', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/logo-upload')>()),
+  uploadLogo: vi.fn(async () => ({
+    outcome: 'uploaded' as const,
+    url: 'https://test-project.supabase.co/storage/v1/object/public/business-logos/u/logo.png',
+  })),
+}));
+
 describe('OnboardingForm', () => {
   it('auto-derives the slug from the business name', async () => {
     render(<OnboardingForm onSubmit={() => {}} submitting={false} />);
@@ -39,6 +49,7 @@ describe('OnboardingForm', () => {
       slug: 'demo-bookstore',
       rewardThreshold: 8,
       rewardDescription: 'A free used book',
+      logoUrl: null,
     });
   });
 

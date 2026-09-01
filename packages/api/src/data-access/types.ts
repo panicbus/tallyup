@@ -18,6 +18,12 @@ export interface BusinessesTable {
   reward_threshold: number;
   reward_description: string;
   created_at: CreatedAt;
+  /** Public Supabase Storage URL of the business's uploaded logo, or null
+   * if they haven't set one. The bytes never pass through this API — the
+   * browser uploads them directly and sends back the URL, which the route
+   * validates against the caller's own storage folder before it lands
+   * here (see services/logo-url.ts). */
+  logo_url: string | null;
 }
 
 export interface StaffTable {

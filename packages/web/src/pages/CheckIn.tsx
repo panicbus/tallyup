@@ -103,6 +103,20 @@ export function CheckIn() {
       <div className="page-content">
         {(phase.name === 'form' || phase.name === 'submitting') && (
           <>
+            {business!.logoUrl && (
+              <img
+                src={business!.logoUrl}
+                alt=""
+                style={{
+                  width: 72,
+                  height: 72,
+                  borderRadius: 16,
+                  objectFit: 'cover',
+                  alignSelf: 'center',
+                  background: 'var(--color-surface)',
+                }}
+              />
+            )}
             <h1 style={{ fontSize: 32 }}>{business!.name}</h1>
             <div className="tag tag-accent-2" style={{ fontSize: 14, padding: '6px 14px' }}>
               Check in
@@ -148,6 +162,7 @@ export function CheckIn() {
               rewardThreshold={business!.rewardThreshold}
               rewardDescription={business!.rewardDescription}
               eligibleForRedemption={phase.eligibleForRedemption}
+              logoUrl={business!.logoUrl}
             />
           </div>
         )}

@@ -20,20 +20,25 @@ export function Onboarding() {
     setError(undefined);
     setSlugError(undefined);
 
-    const result = await createBusiness(values);
+    try {
+      const result = await createBusiness(values);
 
-    if (result.outcome === 'slug_taken') {
-      setSlugError('That URL is already taken. Pick another.');
-      setPhase({ name: 'form' });
-      return;
-    }
-    if (result.outcome === 'already_onboarded') {
-      setError('This account is already linked to a business.');
-      setPhase({ name: 'form' });
-      return;
-    }
+      if (result.outcome === 'slug_taken') {
+        setSlugError('That URL is already taken. Pick another.');
+        setPhase({ name: 'form' });
+        return;
+      }
+      if (result.outcome === 'already_onboarded') {
+        setError('This account is already linked to a business.');
+        setPhase({ name: 'form' });
+        return;
+      }
 
-    setPhase({ name: 'complete', business: result.business });
+      setPhase({ name: 'complete', business: result.business });
+    } catch {
+      setError('Could not create your shop. Try again.');
+      setPhase({ name: 'form' });
+    }
   }
 
   function handleSaveQr(slug: string) {

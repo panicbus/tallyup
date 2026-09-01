@@ -12,7 +12,14 @@ export interface MeResponse {
   id: string;
   email: string;
   role: string;
-  business: { id: string; name: string; slug: string; rewardThreshold: number; rewardDescription: string };
+  business: {
+    id: string;
+    name: string;
+    slug: string;
+    rewardThreshold: number;
+    rewardDescription: string;
+    logoUrl: string | null;
+  };
 }
 
 export interface QueuedPendingCheckin {
@@ -32,6 +39,7 @@ export interface BusinessSummary {
   name: string;
   rewardThreshold: number;
   rewardDescription: string;
+  logoUrl: string | null;
 }
 
 export interface OnboardedBusiness {
@@ -40,6 +48,7 @@ export interface OnboardedBusiness {
   slug: string;
   rewardThreshold: number;
   rewardDescription: string;
+  logoUrl: string | null;
 }
 
 export type CreateBusinessResponse =
@@ -123,6 +132,7 @@ export async function createBusiness(input: {
   slug: string;
   rewardThreshold: number;
   rewardDescription: string;
+  logoUrl: string | null;
 }): Promise<CreateBusinessResponse> {
   const response = await fetch(`${API_URL}/businesses`, {
     method: 'POST',
@@ -139,7 +149,7 @@ export async function createBusiness(input: {
 
 export async function updateBusiness(
   slug: string,
-  input: { name: string; rewardThreshold: number; rewardDescription: string },
+  input: { name: string; rewardThreshold: number; rewardDescription: string; logoUrl: string | null },
 ): Promise<OnboardedBusiness> {
   const response = await fetch(`${API_URL}/businesses/${slug}`, {
     method: 'PATCH',

@@ -3,11 +3,23 @@ import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { SettingsForm } from './SettingsForm';
 
+// SettingsForm renders LogoPicker, which reaches Supabase Storage. Stubbed
+// so this file's import graph never constructs a real client — otherwise
+// these tests would depend on a gitignored .env being present.
+vi.mock('../lib/logo-upload', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/logo-upload')>()),
+  uploadLogo: vi.fn(async () => ({
+    outcome: 'uploaded' as const,
+    url: 'https://test-project.supabase.co/storage/v1/object/public/business-logos/u/logo.png',
+  })),
+}));
+
 const business = {
   name: 'Demo Bookstore',
   slug: 'demo-bookstore',
   rewardThreshold: 10,
   rewardDescription: 'A free used book',
+  logoUrl: null,
 };
 
 describe('SettingsForm', () => {
@@ -46,6 +58,7 @@ describe('SettingsForm', () => {
       name: 'Demo Bookstore',
       rewardThreshold: 5,
       rewardDescription: 'A free used book',
+      logoUrl: null,
     });
   });
 
