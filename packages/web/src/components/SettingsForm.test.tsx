@@ -66,6 +66,12 @@ describe('SettingsForm', () => {
   it('shows a saved confirmation after a successful save', () => {
     render(<SettingsForm business={business} onSubmit={() => {}} submitting={false} saved={true} />);
 
-    expect(screen.getByText(/^saved\.?$/i)).toBeTruthy();
+    expect(screen.getByText(/saved/i)).toBeTruthy();
+  });
+
+  it('does not show a saved confirmation before saving', () => {
+    render(<SettingsForm business={business} onSubmit={() => {}} submitting={false} saved={false} />);
+
+    expect(screen.queryByText(/saved/i)).toBeNull();
   });
 });

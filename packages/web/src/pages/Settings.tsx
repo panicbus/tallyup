@@ -64,80 +64,84 @@ export function Settings() {
 
   return (
     <div className="page">
-      <div className="page-content">
-        <button
-          type="button"
-          onClick={() => navigate(`/dashboard/${slug}`)}
-          style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--color-accent-700)',
-            fontSize: 13,
-            padding: 0,
-            textAlign: 'left',
-            cursor: 'pointer',
-            alignSelf: 'flex-start',
-          }}
-        >
-          ← Back to queue
-        </button>
+      <div className="app-shell" style={{ width: '100%', maxWidth: 'var(--page-max-width)' }}>
+        <div className="page-content app-content" style={{ maxWidth: 'none' }}>
+          <button
+            type="button"
+            onClick={() => navigate(`/dashboard/${slug}`)}
+            style={{
+              background: 'none',
+              border: 'none',
+              color: 'var(--color-accent-700)',
+              fontSize: 13,
+              padding: 0,
+              textAlign: 'left',
+              cursor: 'pointer',
+              alignSelf: 'flex-start',
+            }}
+          >
+            ← Back to queue
+          </button>
 
-        {mode === 'view' ? (
-          <>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <h2 style={{ margin: 0 }}>Settings</h2>
+          {mode === 'view' ? (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <h2 style={{ margin: 0 }}>Settings</h2>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}
+                  onClick={() => {
+                    setSaved(false);
+                    setMode('edit');
+                  }}
+                >
+                  <Pencil size={14} /> Edit
+                </button>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div className="field-grid-2">
+                  <div className="field">
+                    <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>Business name</div>
+                    <div style={{ fontSize: 15, color: 'var(--color-neutral-500)' }}>{me.business.name}</div>
+                  </div>
+                  <div className="field">
+                    <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>Punches needed</div>
+                    <div style={{ fontSize: 15 }}>{me.business.rewardThreshold}</div>
+                  </div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>
+                    Reward, in your words
+                  </div>
+                  <div style={{ fontSize: 15 }}>{me.business.rewardDescription}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>Check-in URL</div>
+                  <div style={{ fontSize: 15, fontFamily: 'ui-monospace, monospace', color: 'var(--color-neutral-500)' }}>
+                    {window.location.host}/checkin/{me.business.slug}
+                  </div>
+                </div>
+              </div>
               <button
                 type="button"
+                onClick={handleSignOut}
                 className="btn btn-primary"
-                style={{ fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}
-                onClick={() => {
-                  setSaved(false);
-                  setMode('edit');
-                }}
+                style={{ alignSelf: 'flex-start', marginTop: 8 }}
               >
-                <Pencil size={14} /> Edit
+                Sign out
               </button>
-            </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>Business name</div>
-                <div style={{ fontSize: 15, color: 'var(--color-neutral-500)' }}>{me.business.name}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>Punches needed</div>
-                <div style={{ fontSize: 15 }}>{me.business.rewardThreshold}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>
-                  Reward, in your words
-                </div>
-                <div style={{ fontSize: 15 }}>{me.business.rewardDescription}</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>Check-in URL</div>
-                <div style={{ fontSize: 15, fontFamily: 'ui-monospace, monospace', color: 'var(--color-neutral-500)' }}>
-                  {window.location.host}/checkin/{me.business.slug}
-                </div>
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handleSignOut}
-              className="btn btn-secondary"
-              style={{ alignSelf: 'flex-start', marginTop: 8 }}
-            >
-              Sign out
-            </button>
-          </>
-        ) : (
-          <SettingsForm
-            business={me.business}
-            onSubmit={handleSubmit}
-            submitting={submitting}
-            saved={saved}
-            error={error}
-          />
-        )}
+            </>
+          ) : (
+            <SettingsForm
+              business={me.business}
+              onSubmit={handleSubmit}
+              submitting={submitting}
+              saved={saved}
+              error={error}
+            />
+          )}
+        </div>
       </div>
     </div>
   );

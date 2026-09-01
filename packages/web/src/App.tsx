@@ -12,7 +12,7 @@ function Home() {
       <div className="page-content" style={{ alignItems: 'center', justifyContent: 'center', flex: 1, textAlign: 'center' }}>
         <img src="/logo.svg" alt="" width={72} height={72} />
         <h1 style={{ marginTop: 4 }}>TallyUp</h1>
-        <p className="text-muted">Digital punch cards for shops that don't want an app.</p>
+        <p className="text-muted">The punch card, without the paper.</p>
         <Link to="/login" className="btn btn-primary" style={{ marginTop: 8 }}>
           Staff sign in
         </Link>

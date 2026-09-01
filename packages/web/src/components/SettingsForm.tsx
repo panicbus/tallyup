@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, CheckCircle } from 'lucide-react';
 import { LogoPicker } from './LogoPicker';
 
 interface SettingsFormBusiness {
@@ -41,29 +41,31 @@ export function SettingsForm({ business, onSubmit, submitting, saved, error }: S
         </p>
       )}
 
-      <div className="field">
-        <label htmlFor="settings-business-name">Business name</label>
-        <input
-          id="settings-business-name"
-          className="input"
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-      </div>
+      <div className="field-grid-2">
+        <div className="field">
+          <label htmlFor="settings-business-name">Business name</label>
+          <input
+            id="settings-business-name"
+            className="input"
+            type="text"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </div>
 
-      <div className="field">
-        <label htmlFor="settings-punches-needed">Punches needed</label>
-        <input
-          id="settings-punches-needed"
-          className="input"
-          type="number"
-          min="1"
-          value={rewardThreshold}
-          onChange={(e) => setRewardThreshold(e.target.value)}
-          required
-        />
+        <div className="field">
+          <label htmlFor="settings-punches-needed">Punches needed</label>
+          <input
+            id="settings-punches-needed"
+            className="input"
+            type="number"
+            min="1"
+            value={rewardThreshold}
+            onChange={(e) => setRewardThreshold(e.target.value)}
+            required
+          />
+        </div>
       </div>
 
       <div className="field">
@@ -113,7 +115,9 @@ export function SettingsForm({ business, onSubmit, submitting, saved, error }: S
         Save changes
       </button>
       {saved && (
-        <p style={{ color: 'var(--color-accent-2-700)', fontSize: 13, fontWeight: 700, margin: 0 }}>Saved.</p>
+        <span className="saved-pill">
+          <CheckCircle size={14} /> Saved
+        </span>
       )}
     </form>
   );

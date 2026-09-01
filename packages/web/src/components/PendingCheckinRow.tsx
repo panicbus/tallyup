@@ -21,7 +21,7 @@ export function PendingCheckinRow({ checkin, onConfirm, confirmDisabled, now }: 
         alignItems: 'center',
         gap: 14,
         padding: '14px 16px',
-        background: 'var(--color-bg)',
+        background: 'var(--color-surface)',
         borderRadius: 'var(--radius-md)',
         flexWrap: 'wrap',
       }}

@@ -93,7 +93,9 @@ export function Onboarding() {
           </div>
           <p style={{ fontFamily: 'ui-monospace, monospace', margin: 0 }}>{checkinUrl}</p>
           <p className="text-muted" style={{ margin: 0, maxWidth: 280 }}>
-            Print this and tape it by the till. Scan to collect points.
+            Print this and tape it by the till.
+            <br />
+            Scan to collect points.
           </p>
           <button
             type="button"
@@ -132,7 +134,7 @@ export function Onboarding() {
         <div>
           <h2 style={{ margin: '0 0 4px' }}>Set up your shop</h2>
           <p className="text-muted" style={{ margin: 0 }}>
-            This becomes real once you save it — take your time.
+            Take your time, nothing's final until you save.
           </p>
         </div>
         <OnboardingForm

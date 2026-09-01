@@ -129,11 +129,13 @@ export function CheckIn() {
           >
             <div
               className="tu-pulse"
-              style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--color-accent-200)' }}
+              style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--color-accent)' }}
             />
             <h2 style={{ fontSize: 21, margin: 0 }}>Waiting for staff…</h2>
             <p className="text-muted" style={{ margin: 0, fontSize: 14, maxWidth: 220 }}>
-              This screen updates on its own. No need to refresh.
+              This screen updates on its own.
+              <br />
+              No need to refresh.
             </p>
           </div>
         )}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ImageIcon } from 'lucide-react';
+import { ImageIcon, X } from 'lucide-react';
 
 /**
  * Business logo field — client-side preview only. Upload/storage wiring is a
@@ -23,6 +23,14 @@ export function LogoPicker() {
       if (prev) URL.revokeObjectURL(prev);
       return URL.createObjectURL(file);
     });
+  }
+
+  function handleRemove() {
+    setPreviewUrl((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return null;
+    });
+    if (inputRef.current) inputRef.current.value = '';
   }
 
   return (
@@ -52,8 +60,27 @@ export function LogoPicker() {
           )}
         </div>
         <button type="button" className="btn btn-primary" style={{ fontSize: 14 }} onClick={() => inputRef.current?.click()}>
-          Upload image
+          {previewUrl ? 'Change image' : 'Upload image'}
         </button>
+        {previewUrl && (
+          <button
+            type="button"
+            onClick={handleRemove}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              fontSize: 13,
+              background: 'none',
+              border: 'none',
+              color: 'var(--color-accent-700)',
+              cursor: 'pointer',
+              padding: 0,
+            }}
+          >
+            <X size={14} /> Remove logo
+          </button>
+        )}
         <input
           id="business-logo"
           ref={inputRef}

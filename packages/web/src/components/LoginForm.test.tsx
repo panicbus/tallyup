@@ -32,4 +32,17 @@ describe('LoginForm', () => {
 
     expect(screen.getByRole('button', { name: 'Create account' })).toBeTruthy();
   });
+
+  it('toggles the password field between hidden and visible', async () => {
+    render(<LoginForm onSubmit={() => {}} submitting={false} />);
+    const passwordField = screen.getByLabelText(/password/i);
+
+    expect(passwordField).toHaveAttribute('type', 'password');
+
+    await userEvent.click(screen.getByRole('button', { name: /show password/i }));
+    expect(passwordField).toHaveAttribute('type', 'text');
+
+    await userEvent.click(screen.getByRole('button', { name: /hide password/i }));
+    expect(passwordField).toHaveAttribute('type', 'password');
+  });
 });
