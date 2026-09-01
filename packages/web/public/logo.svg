@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <!-- sparkle marks -->
+  <g stroke="#201e1d" stroke-width="6" stroke-linecap="round">
+    <path d="M50 8 L50 20" />
+    <path d="M32 14 L38 24" />
+    <path d="M68 14 L62 24" />
+  </g>
+
+  <!-- card outline -->
+  <rect x="16" y="34" width="68" height="46" rx="11" stroke="#201e1d" stroke-width="7" />
+
+  <!-- punch dots -->
+  <g fill="#8fa073">
+    <circle cx="34" cy="50" r="6.5" />
+    <circle cx="50" cy="50" r="6.5" />
+    <circle cx="66" cy="50" r="6.5" />
+    <circle cx="34" cy="66" r="6.5" />
+    <circle cx="50" cy="66" r="6.5" />
+  </g>
+
+  <!-- confirm badge -->
+  <circle cx="76" cy="72" r="17" fill="#c67139" stroke="#f5ead8" stroke-width="4" />
+  <path d="M68 72.5 L74 78.5 L85 65.5" stroke="#f5ead8" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none" />
+</svg>
