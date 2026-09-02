@@ -76,3 +76,9 @@ confirming for a Business that isn't theirs regardless of what the routes do.
 
 Avoid: "permissions", "roles" — neither describes this check, and `role`
 already means something narrower above.
+
+Every table also has Row Level Security enabled with no policies, which is a
+separate layer from the above: it stops Supabase's public anon key (shipped in
+the web bundle) from reaching any table directly through Supabase's own REST
+API, regardless of what the Fastify API's own checks do. See
+[ADR-0002](docs/adr/0002-enable-row-level-security.md).
