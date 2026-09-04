@@ -66,6 +66,23 @@ describe('migrations', () => {
   });
 });
 
+describe('row level security', () => {
+  test('every public table has RLS enabled', async ({ db }) => {
+    const tables = await sql<{ relname: string; relrowsecurity: boolean }>`
+      select c.relname, c.relrowsecurity
+      from pg_class c
+      join pg_namespace n on n.oid = c.relnamespace
+      where n.nspname = 'public' and c.relkind = 'r'
+      order by c.relname
+    `.execute(db);
+
+    expect(tables.rows.length).toBeGreaterThan(0);
+    for (const table of tables.rows) {
+      expect(table.relrowsecurity, `${table.relname} should have RLS enabled`).toBe(true);
+    }
+  });
+});
+
 describe('businesses', () => {
   test('reward_threshold must be positive', async ({ db }) => {
     await expect(

@@ -9,24 +9,25 @@ import { Kysely, sql } from 'kysely';
 // public VITE_SUPABASE_ANON_KEY shipped in the web bundle — now get denied
 // by default instead of the wide-open access Supabase gives an RLS-less
 // table. See ADR-0002.
+const TABLES = [
+  'businesses',
+  'staff',
+  'customers',
+  'pending_checkins',
+  'visits',
+  'redemptions',
+  'kysely_migration',
+  'kysely_migration_lock',
+] as const;
+
 export async function up(db: Kysely<unknown>): Promise<void> {
-  await sql`alter table businesses enable row level security`.execute(db);
-  await sql`alter table staff enable row level security`.execute(db);
-  await sql`alter table customers enable row level security`.execute(db);
-  await sql`alter table pending_checkins enable row level security`.execute(db);
-  await sql`alter table visits enable row level security`.execute(db);
-  await sql`alter table redemptions enable row level security`.execute(db);
-  await sql`alter table kysely_migration enable row level security`.execute(db);
-  await sql`alter table kysely_migration_lock enable row level security`.execute(db);
+  for (const table of TABLES) {
+    await sql`alter table ${sql.raw(table)} enable row level security`.execute(db);
+  }
 }
 
 export async function down(db: Kysely<unknown>): Promise<void> {
-  await sql`alter table businesses disable row level security`.execute(db);
-  await sql`alter table staff disable row level security`.execute(db);
-  await sql`alter table customers disable row level security`.execute(db);
-  await sql`alter table pending_checkins disable row level security`.execute(db);
-  await sql`alter table visits disable row level security`.execute(db);
-  await sql`alter table redemptions disable row level security`.execute(db);
-  await sql`alter table kysely_migration disable row level security`.execute(db);
-  await sql`alter table kysely_migration_lock disable row level security`.execute(db);
+  for (const table of TABLES) {
+    await sql`alter table ${sql.raw(table)} disable row level security`.execute(db);
+  }
 }
