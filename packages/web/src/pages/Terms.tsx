@@ -16,7 +16,7 @@ export function Terms() {
 
       <h2>Using it</h2>
       <ul>
-        <li>You're responsible for what your staff do with their accounts — keep invite codes and passwords private.</li>
+        <li>You're responsible for what your staff do with their accounts. Keep invite codes and passwords private.</li>
         <li>Don't use TallyUp to send spam, harass anyone, or break the law.</li>
         <li>Only collect phone numbers from customers who chose to give them at your counter.</li>
       </ul>

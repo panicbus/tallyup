@@ -30,7 +30,7 @@ export function RosterTable({ items }: RosterTableProps) {
                 {item.hasSmsConsent ? (
                   <span className="tag tag-accent-2">Opted in</span>
                 ) : (
-                  <span className="text-muted">—</span>
+                  <span className="text-muted">No</span>
                 )}
               </td>
             </tr>

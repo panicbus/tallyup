@@ -29,7 +29,7 @@ export function ForgotPassword() {
         footer={<Link to="/login">Back to sign in</Link>}
       >
         <p className="text-muted" style={{ margin: 0, fontSize: 13 }}>
-          The link opens a page where you can set a new password. It expires after a little while — request another if
+          The link opens a page where you can set a new password. It expires after a little while. Request another if
           it does.
         </p>
       </AuthShell>

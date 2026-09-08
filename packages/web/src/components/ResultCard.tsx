@@ -61,7 +61,7 @@ export function ResultCard({ result, onRedeem, onDismiss, redeemDisabled }: Resu
           onClick={() => onRedeem(result.customerId)}
           disabled={redeemDisabled}
         >
-          <Gift size={16} /> Redeem — {result.rewardDescription}
+          <Gift size={16} /> Redeem: {result.rewardDescription}
         </button>
       )}
     </li>

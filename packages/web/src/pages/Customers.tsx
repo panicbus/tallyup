@@ -142,7 +142,7 @@ export function Customers() {
               }}
             >
               <Users size={28} />
-              <p style={{ margin: 0, fontSize: 14 }}>No customers yet — they'll show up here after their first check-in.</p>
+              <p style={{ margin: 0, fontSize: 14 }}>No customers yet. They'll show up here after their first check-in.</p>
             </div>
           ) : (
             data && (

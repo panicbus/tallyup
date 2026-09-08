@@ -202,7 +202,7 @@ export function Dashboard() {
               }}
             >
               <p style={{ margin: 0, fontSize: 14, maxWidth: 300, color: 'var(--color-neutral-600)' }}>
-                No check-ins yet. Print your QR code and put it where customers can see it — by the register or on the
+                No check-ins yet. Print your QR code and put it where customers can see it, by the register or on the
                 counter.
               </p>
               <CheckInQrCode slug={slug} size={150} />
@@ -219,7 +219,7 @@ export function Dashboard() {
               }}
             >
               <Inbox size={28} />
-              <p style={{ margin: 0, fontSize: 14 }}>All caught up — nobody's waiting.</p>
+              <p style={{ margin: 0, fontSize: 14 }}>All caught up. Nobody's waiting.</p>
             </div>
           )
         ) : (

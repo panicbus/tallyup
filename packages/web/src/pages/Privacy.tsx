@@ -16,7 +16,7 @@ export function Privacy() {
         </li>
         <li>
           <strong>From customers:</strong> the phone number they type at check-in, their visit count and rewards, and
-          — only if they tick the box — a record that they agreed to receive texts, with the date and the exact
+          (only if they tick the box) a record that they agreed to receive texts, with the date and the exact
           wording they saw.
         </li>
       </ul>
