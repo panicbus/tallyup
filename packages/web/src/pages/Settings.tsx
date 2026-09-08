@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Pencil, Users } from 'lucide-react';
+import { ChevronDown, Pencil, Users } from 'lucide-react';
 import { getMe, updateBusiness } from '../lib/api';
 import type { MeResponse } from '../lib/api';
 import { supabaseClient } from '../lib/supabase';
@@ -135,12 +135,14 @@ export function Settings() {
                     <div style={{ fontSize: 15, color: 'var(--color-neutral-500)' }}>Not set</div>
                   )}
                 </div>
-                <div>
-                  <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 8 }}>
-                    Check-in QR code
+                <details className="qr-disclosure">
+                  <summary>
+                    <ChevronDown size={14} /> Show printable QR code
+                  </summary>
+                  <div style={{ marginTop: 16 }}>
+                    <CheckInQrCode slug={me.business.slug} />
                   </div>
-                  <CheckInQrCode slug={me.business.slug} />
-                </div>
+                </details>
               </div>
               {me.role === 'owner' && (
                 <Link

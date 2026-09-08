@@ -42,7 +42,7 @@ describe('CheckInQrCode', () => {
     URL.revokeObjectURL = vi.fn();
 
     render(<CheckInQrCode slug="demo-shop" />);
-    const button = screen.getByRole('button', { name: /save qr/i });
+    const button = screen.getByRole('button', { name: /download qr code image/i });
     await userEvent.click(button);
     // The Image onload path is async in real browsers; fire it directly.
     const img = new Image();

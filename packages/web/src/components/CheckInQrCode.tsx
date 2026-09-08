@@ -85,7 +85,7 @@ export function CheckInQrCode({ slug, size = 164 }: Props) {
           padding: 0,
         }}
       >
-        <Download size={14} /> Save QR to photos
+        <Download size={14} /> Download QR code image or save to photos.
       </button>
     </div>
   );

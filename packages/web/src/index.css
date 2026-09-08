@@ -228,6 +228,21 @@ input[type='number']::-webkit-outer-spin-button {
 .tag-accent-2 { background: var(--color-accent-2-100); color: var(--color-accent-2-800); }
 .tag-neutral { background: var(--color-neutral-100); color: var(--color-neutral-800); }
 
+/* — disclosure: keep the printable QR tucked away on Settings — */
+.qr-disclosure > summary {
+  list-style: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--color-accent-700);
+  user-select: none;
+}
+.qr-disclosure > summary::-webkit-details-marker { display: none; }
+.qr-disclosure > summary svg { transition: transform 0.15s ease; }
+.qr-disclosure[open] > summary svg { transform: rotate(180deg); }
+
 /* — page shell: every screen centers under this ceiling until desktop
    designs land (Q5) — mobile-first, not mobile-only. — */
 .page {
