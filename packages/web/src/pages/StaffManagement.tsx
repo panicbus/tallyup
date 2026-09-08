@@ -337,7 +337,6 @@ export function StaffManagement() {
                     <button
                       type="button"
                       aria-label="Revoke this invite"
-                      title="Revoke this invite"
                       onClick={() => handleRevokeInvite(invite.id)}
                       style={{
                         marginLeft: 'auto',
