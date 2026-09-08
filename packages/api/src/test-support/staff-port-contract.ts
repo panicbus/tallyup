@@ -61,6 +61,51 @@ export function runStaffPortContractTests<Fixtures extends { realDb?: unknown }>
       expect(result).toEqual({ outcome: 'invalid_code' });
     });
 
+    test('a revoked invite can no longer be redeemed and drops off the pending list', async ({ realDb }) => {
+      const { port, seedBusiness, seedStaff } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness();
+      const owner = await seedStaff({ businessId: business.id, authUserId: crypto.randomUUID(), role: 'owner' });
+      const invite = await port.createInvite({ businessId: business.id, role: 'staff', createdBy: owner.id });
+
+      const revoke = await port.revokeInvite({ inviteId: invite.id, businessId: business.id });
+      const redeem = await port.redeemInvite({ code: invite.code, authUserId: crypto.randomUUID(), email: 'a@example.com' });
+      const roster = await port.listStaff(business.id);
+
+      expect(revoke).toEqual({ outcome: 'revoked' });
+      expect(redeem).toEqual({ outcome: 'invalid_code' });
+      expect(roster.pendingInvites).toEqual([]);
+    });
+
+    test('revokeInvite will not touch an invite belonging to another business', async ({ realDb }) => {
+      const { port, seedBusiness, seedStaff } = await createSetup({ realDb } as Fixtures);
+      const businessA = await seedBusiness();
+      const businessB = await seedBusiness();
+      const ownerA = await seedStaff({ businessId: businessA.id, authUserId: crypto.randomUUID(), role: 'owner' });
+      const invite = await port.createInvite({ businessId: businessA.id, role: 'staff', createdBy: ownerA.id });
+
+      const crossTenant = await port.revokeInvite({ inviteId: invite.id, businessId: businessB.id });
+      const stillRedeemable = await port.redeemInvite({
+        code: invite.code,
+        authUserId: crypto.randomUUID(),
+        email: 'a@example.com',
+      });
+
+      expect(crossTenant).toEqual({ outcome: 'not_found' });
+      expect(stillRedeemable.outcome).toBe('redeemed');
+    });
+
+    test('revoking an already-revoked invite is not_found', async ({ realDb }) => {
+      const { port, seedBusiness, seedStaff } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness();
+      const owner = await seedStaff({ businessId: business.id, authUserId: crypto.randomUUID(), role: 'owner' });
+      const invite = await port.createInvite({ businessId: business.id, role: 'staff', createdBy: owner.id });
+
+      await port.revokeInvite({ inviteId: invite.id, businessId: business.id });
+      const second = await port.revokeInvite({ inviteId: invite.id, businessId: business.id });
+
+      expect(second).toEqual({ outcome: 'not_found' });
+    });
+
     test('redeeming fails for an identity that already has an active staff row anywhere', async ({ realDb }) => {
       const { port, seedBusiness, seedStaff } = await createSetup({ realDb } as Fixtures);
       const businessA = await seedBusiness();

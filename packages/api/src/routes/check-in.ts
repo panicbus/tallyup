@@ -71,7 +71,14 @@ export async function checkInRoutes(app: FastifyInstance, deps: AppDependencies)
         });
       }
 
-      return reply.code(200).send(pendingCheckin);
+      // So the customer-facing form can drop the consent checkbox on a
+      // repeat check-in for a number that has already opted in — just
+      // ticked, or opted in on any earlier visit.
+      const hasSmsConsent =
+        parsedBody.data.smsConsent ||
+        (await deps.checkInPort.hasConsented({ businessId: business.id, phone: parsedBody.data.phone }));
+
+      return reply.code(200).send({ ...pendingCheckin, hasSmsConsent });
     },
   );
 

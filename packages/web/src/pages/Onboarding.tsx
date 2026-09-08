@@ -52,7 +52,7 @@ export function Onboarding() {
       const result = await redeemInvite(code);
 
       if (result.outcome === 'invalid_code') {
-        setJoinError('That code is invalid or has expired.');
+        setJoinError('That invitation is no longer valid.');
         setJoinSubmitting(false);
         return;
       }

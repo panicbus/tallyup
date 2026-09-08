@@ -15,6 +15,8 @@ export type RedeemInviteResult =
   | { outcome: 'invalid_code' }
   | { outcome: 'already_staff' };
 
+export type RevokeInviteResult = { outcome: 'revoked' } | { outcome: 'not_found' };
+
 export interface StaffListEntry {
   id: string;
   email: string;
@@ -64,6 +66,13 @@ export interface StaffPort {
    * one — never both, never neither.
    */
   redeemInvite(input: { code: string; authUserId: string; email: string }): Promise<RedeemInviteResult>;
+  /**
+   * Nullifies a still-pending invite so its code can never be redeemed.
+   * Scoped to `businessId` for tenant isolation — an invite id belonging to
+   * another business is `not_found`, never touched — and only acts on an
+   * invite that is still live (not already redeemed, revoked, or expired).
+   */
+  revokeInvite(input: { inviteId: string; businessId: string }): Promise<RevokeInviteResult>;
   /** The full roster for one business: active/deactivated staff and
    * still-valid pending invites. Redacting this for non-owner callers (no
    * email, no pending invites) is a services/ concern, applied before this

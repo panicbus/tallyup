@@ -112,7 +112,7 @@ export async function createPendingCheckin(
   slug: string,
   phone: string,
   smsConsent: boolean,
-): Promise<{ id: string; expiresAt: string }> {
+): Promise<{ id: string; expiresAt: string; hasSmsConsent: boolean }> {
   const response = await fetch(`${API_URL}/businesses/${slug}/pending-checkins`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -261,6 +261,18 @@ export async function createInvite(slug: string, role: StaffRole): Promise<Creat
   });
   if (!response.ok) throw new Error(`Failed to create invite (${response.status})`);
   return response.json();
+}
+
+export async function revokeInvite(inviteId: string): Promise<void> {
+  const response = await fetch(`${API_URL}/invites/${inviteId}/revoke`, {
+    method: 'POST',
+    headers: await authHeaders(),
+  });
+  // 404 = already gone (used, expired, or revoked) — the caller's intent is
+  // satisfied either way, so don't treat it as an error.
+  if (!response.ok && response.status !== 404) {
+    throw new Error(`Failed to revoke invite (${response.status})`);
+  }
 }
 
 export type DeactivateStaffResponse = { outcome: 'deactivated' } | { outcome: 'last_owner' };

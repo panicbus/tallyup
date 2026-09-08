@@ -243,11 +243,11 @@ input[type='number']::-webkit-outer-spin-button {
 .modal-panel {
   position: relative;
   width: 100%;
-  max-width: 320px;
+  max-width: 400px;
   background: var(--color-bg);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
-  padding: 34px 28px 28px;
+  padding: 40px 32px 32px;
 }
 .modal-close {
   position: absolute;

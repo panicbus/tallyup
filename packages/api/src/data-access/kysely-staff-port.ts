@@ -7,6 +7,7 @@ import type {
   DeactivateStaffResult,
   PendingInviteEntry,
   RedeemInviteResult,
+  RevokeInviteResult,
   StaffListEntry,
   StaffPort,
   StaffRoster,
@@ -115,6 +116,23 @@ export function createKyselyStaffPort(db: Kysely<Database>): StaffPort {
 
         return { outcome: 'redeemed', businessId: invite.business_id, role: invite.role };
       });
+    },
+
+    async revokeInvite({ inviteId, businessId }): Promise<RevokeInviteResult> {
+      // Consuming the single-use slot (redeemed_at) is enough to nullify it:
+      // the redeem guard is `redeemed_at is null`, and the pending-invite
+      // list filters the same way, so a revoked invite vanishes from both.
+      const revoked = await db
+        .updateTable('staff_invites')
+        .set({ redeemed_at: new Date() })
+        .where('id', '=', inviteId)
+        .where('business_id', '=', businessId)
+        .where('redeemed_at', 'is', null)
+        .where('expires_at', '>', new Date())
+        .returning('id')
+        .executeTakeFirst();
+
+      return revoked ? { outcome: 'revoked' } : { outcome: 'not_found' };
     },
 
     async listStaff(businessId): Promise<StaffRoster> {

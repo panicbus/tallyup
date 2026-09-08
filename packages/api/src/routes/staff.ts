@@ -46,6 +46,27 @@ export async function staffRoutes(app: FastifyInstance, deps: AppDependencies): 
   );
 
   app.post(
+    '/invites/:id/revoke',
+    // Tenant isolation is the port's `business_id` scope, not a slug in the
+    // path — same shape as /staff/:id/deactivate. An invite id from another
+    // business simply doesn't match and comes back 404.
+    { preHandler: [requireStaff(deps), requireOwner] },
+    async (request, reply) => {
+      const { id } = request.params as { id: string };
+
+      const result = await deps.staffPort.revokeInvite({
+        inviteId: id,
+        businessId: request.staff!.business.id,
+      });
+
+      if (result.outcome === 'not_found') {
+        return reply.code(404).send({ error: 'not_found' });
+      }
+      return reply.code(200).send(result);
+    },
+  );
+
+  app.post(
     '/staff/:id/deactivate',
     // No :slug in this path, matching /customers/:id/redeem and
     // /pending-checkins/:id/confirm — tenant isolation comes entirely from

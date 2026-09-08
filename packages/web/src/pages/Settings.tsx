@@ -122,18 +122,22 @@ export function Settings() {
                 <div className="field-grid-2">
                   <div className="field">
                     <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>Business name</div>
-                    <div style={{ fontSize: 15, color: 'var(--color-neutral-500)' }}>{me.business.name}</div>
+                    <div style={{ fontSize: 19, fontWeight: 600, color: 'var(--color-text)' }}>{me.business.name}</div>
                   </div>
                   <div className="field">
                     <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>Punches needed</div>
-                    <div style={{ fontSize: 15 }}>{me.business.rewardThreshold}</div>
+                    <div style={{ fontSize: 19, fontWeight: 600, color: 'var(--color-text)' }}>
+                      {me.business.rewardThreshold}
+                    </div>
                   </div>
                 </div>
                 <div>
                   <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>
                     Reward, in your words
                   </div>
-                  <div style={{ fontSize: 15 }}>{me.business.rewardDescription}</div>
+                  <div style={{ fontSize: 19, fontWeight: 600, color: 'var(--color-text)' }}>
+                    {me.business.rewardDescription}
+                  </div>
                 </div>
                 <div>
                   <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>Business logo</div>
@@ -150,7 +154,7 @@ export function Settings() {
                       }}
                     />
                   ) : (
-                    <div style={{ fontSize: 15, color: 'var(--color-neutral-500)' }}>Not set</div>
+                    <div style={{ fontSize: 17, color: 'var(--color-neutral-500)' }}>Not set</div>
                   )}
                 </div>
                 <div>
@@ -209,7 +213,7 @@ export function Settings() {
             <button type="button" className="modal-close" aria-label="Close" onClick={() => setQrOpen(false)}>
               <X size={18} />
             </button>
-            <CheckInQrCode slug={me.business.slug} />
+            <CheckInQrCode slug={me.business.slug} size={208} />
           </div>
         </div>
       )}

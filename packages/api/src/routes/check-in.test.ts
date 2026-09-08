@@ -95,6 +95,35 @@ describe('POST /businesses/:slug/pending-checkins', () => {
     expect(await port.hasConsented({ businessId: business.id, phone: '+15551234567' })).toBe(false);
   });
 
+  it('reports hasSmsConsent so the form can drop the checkbox on a repeat check-in', async () => {
+    const { port, seedBusiness } = createInMemoryCheckInPort();
+    await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const { app } = buildTestApp(port);
+
+    const first = await app.inject({
+      method: 'POST',
+      url: '/businesses/test-shop/pending-checkins',
+      payload: { phone: '555-123-4567', smsConsent: true },
+    });
+    expect(first.json()).toMatchObject({ hasSmsConsent: true });
+
+    // A later check-in for the same number, box unticked, still reports true.
+    const repeat = await app.inject({
+      method: 'POST',
+      url: '/businesses/test-shop/pending-checkins',
+      payload: { phone: '(555) 123-4567', smsConsent: false },
+    });
+    expect(repeat.json()).toMatchObject({ hasSmsConsent: true });
+
+    // A different number that never consented reports false.
+    const other = await app.inject({
+      method: 'POST',
+      url: '/businesses/test-shop/pending-checkins',
+      payload: { phone: '555-000-1111', smsConsent: false },
+    });
+    expect(other.json()).toMatchObject({ hasSmsConsent: false });
+  });
+
   it('records no consent when smsConsent is omitted entirely — absent means no, not yes', async () => {
     const { port, seedBusiness } = createInMemoryCheckInPort();
     const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });

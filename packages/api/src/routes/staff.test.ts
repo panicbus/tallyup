@@ -219,6 +219,89 @@ describe('POST /staff/:id/deactivate', () => {
   });
 });
 
+describe('POST /invites/:id/revoke', () => {
+  async function createInvite(app: ReturnType<typeof buildTestApp>['app'], headers: Record<string, string>) {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/businesses/test-shop/invites',
+      headers,
+      payload: { role: 'staff' },
+    });
+    return res.json() as { id: string; code: string };
+  }
+
+  it('lets the owner revoke a pending invite, and the code is then dead', async () => {
+    const { app, seedBusiness, loginAsStaffOf, loginAsFreshIdentity } = buildTestApp();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const owner = loginAsStaffOf(business.id);
+    const invite = await createInvite(app, owner.headers);
+
+    const revoke = await app.inject({ method: 'POST', url: `/invites/${invite.id}/revoke`, headers: owner.headers });
+    expect(revoke.statusCode).toBe(200);
+
+    const redeem = await app.inject({
+      method: 'POST',
+      url: '/invites/redeem',
+      headers: loginAsFreshIdentity().headers,
+      payload: { code: invite.code },
+    });
+    expect(redeem.statusCode).toBe(400);
+
+    const roster = await app.inject({ method: 'GET', url: '/businesses/test-shop/staff', headers: owner.headers });
+    expect(roster.json().pendingInvites).toEqual([]);
+  });
+
+  it('403s for a non-owner staff member', async () => {
+    const { app, seedBusiness, loginAsStaffOf } = buildTestApp();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const invite = await createInvite(app, loginAsStaffOf(business.id).headers);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/invites/${invite.id}/revoke`,
+      headers: loginAsStaffOf(business.id, 'staff').headers,
+    });
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it("404s an owner trying to revoke another business's invite", async () => {
+    const { app, seedBusiness, loginAsStaffOf } = buildTestApp();
+    const businessA = await seedBusiness({ slug: 'shop-a', rewardThreshold: 10 });
+    const businessB = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const inviteB = await createInvite(app, loginAsStaffOf(businessB.id).headers);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/invites/${inviteB.id}/revoke`,
+      headers: loginAsStaffOf(businessA.id).headers,
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('404s for an unknown invite id', async () => {
+    const { app, seedBusiness, loginAsStaffOf } = buildTestApp();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+
+    const response = await app.inject({
+      method: 'POST',
+      url: `/invites/${randomUUID()}/revoke`,
+      headers: loginAsStaffOf(business.id).headers,
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+
+  it('401s with no Authorization header', async () => {
+    const { app } = buildTestApp();
+
+    const response = await app.inject({ method: 'POST', url: `/invites/${randomUUID()}/revoke` });
+
+    expect(response.statusCode).toBe(401);
+  });
+});
+
 describe('POST /invites/redeem', () => {
   it('redeems a valid code for a freshly authenticated identity', async () => {
     const { app, seedBusiness, loginAsStaffOf, loginAsFreshIdentity } = buildTestApp();

@@ -6,12 +6,26 @@ interface CheckInFormProps {
   onSubmit: (phone: string, smsConsent: boolean) => void;
   submitting: boolean;
   businessName: string;
+  /** Pre-fill, e.g. when a customer taps "Check in again". */
+  initialPhone?: string;
+  /** True once a number is known to have SMS consent on file — the consent
+   * checkbox is then hidden, since re-asking would just append a duplicate
+   * ledger row. Re-evaluated as the field is edited. */
+  isPhoneKnownConsented?: (phone: string) => boolean;
 }
 
-export function CheckInForm({ onSubmit, submitting, businessName }: CheckInFormProps) {
-  const [phone, setPhone] = useState('');
+export function CheckInForm({
+  onSubmit,
+  submitting,
+  businessName,
+  initialPhone = '',
+  isPhoneKnownConsented,
+}: CheckInFormProps) {
+  const [phone, setPhone] = useState(initialPhone);
   const [smsConsent, setSmsConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const consentKnown = isPhoneKnownConsented?.(phone) ?? false;
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
@@ -45,15 +59,17 @@ export function CheckInForm({ onSubmit, submitting, businessName }: CheckInFormP
           </p>
         )}
       </div>
-      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, cursor: 'pointer' }}>
-        <input
-          type="checkbox"
-          checked={smsConsent}
-          onChange={(e) => setSmsConsent(e.target.checked)}
-          style={{ marginTop: 2 }}
-        />
-        <span className="text-muted">{smsConsentLanguageV1(businessName)}</span>
-      </label>
+      {!consentKnown && (
+        <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, cursor: 'pointer' }}>
+          <input
+            type="checkbox"
+            checked={smsConsent}
+            onChange={(e) => setSmsConsent(e.target.checked)}
+            style={{ marginTop: 2 }}
+          />
+          <span className="text-muted">{smsConsentLanguageV1(businessName)}</span>
+        </label>
+      )}
       <button
         type="submit"
         className="btn btn-primary btn-block"

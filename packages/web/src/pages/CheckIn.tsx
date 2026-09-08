@@ -1,12 +1,36 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { SearchX, Clock } from 'lucide-react';
+import { normalizePhone } from '@tallyup/shared';
 import { createPendingCheckin, getBusiness, getCheckinStatus } from '../lib/api';
 import type { BusinessSummary } from '../lib/api';
 import { CheckInForm } from '../components/CheckInForm';
 import { CustomerCard } from '../components/CustomerCard';
 
 const STATUS_POLL_INTERVAL_MS = 2000;
+
+// Which phone numbers (E.164) this device has seen opt into SMS at this
+// shop — so a returning customer isn't shown the consent checkbox again.
+// Per-device convenience only; the server's ledger is the real record.
+function consentStorageKey(slug: string): string {
+  return `tallyup:sms-consent:${slug}`;
+}
+function loadConsentedPhones(slug: string): Set<string> {
+  try {
+    const raw = localStorage.getItem(consentStorageKey(slug));
+    return new Set(raw ? (JSON.parse(raw) as string[]) : []);
+  } catch {
+    return new Set();
+  }
+}
+function persistConsentedPhones(slug: string, phones: Set<string>): void {
+  try {
+    localStorage.setItem(consentStorageKey(slug), JSON.stringify([...phones]));
+  } catch {
+    // Private mode / storage disabled — the in-memory Set still works for
+    // this session, which is the common case anyway.
+  }
+}
 
 type Phase =
   | { name: 'loading' }
@@ -21,6 +45,8 @@ export function CheckIn() {
   const { slug } = useParams() as { slug: string };
   const [business, setBusiness] = useState<BusinessSummary | null>(null);
   const [phase, setPhase] = useState<Phase>({ name: 'loading' });
+  const [consentedPhones, setConsentedPhones] = useState<Set<string>>(() => loadConsentedPhones(slug));
+  const [lastPhone, setLastPhone] = useState('');
 
   useEffect(() => {
     getBusiness(slug).then((found) => {
@@ -62,16 +88,40 @@ export function CheckIn() {
   useEffect(() => {
     if (phase.name !== 'confirmed' || phase.eligibleForRedemption) return;
     function onVisibility() {
-      if (document.visibilityState === 'visible') setPhase({ name: 'form' });
+      if (document.visibilityState === 'visible') {
+        // Could be a different customer re-scanning, so don't carry the
+        // last number into the field — but a known-consented number will
+        // still hide the checkbox once it's typed.
+        setLastPhone('');
+        setPhase({ name: 'form' });
+      }
     }
     document.addEventListener('visibilitychange', onVisibility);
     return () => document.removeEventListener('visibilitychange', onVisibility);
   }, [phase]);
 
   async function handleSubmit(phone: string, smsConsent: boolean) {
+    setLastPhone(phone);
     setPhase({ name: 'submitting' });
     const pending = await createPendingCheckin(slug, phone, smsConsent);
+
+    if (pending.hasSmsConsent) {
+      const e164 = normalizePhone(phone);
+      if (e164) {
+        setConsentedPhones((current) => {
+          const next = new Set(current).add(e164);
+          persistConsentedPhones(slug, next);
+          return next;
+        });
+      }
+    }
+
     setPhase({ name: 'waiting', pendingCheckinId: pending.id });
+  }
+
+  function isPhoneKnownConsented(phone: string): boolean {
+    const e164 = normalizePhone(phone);
+    return e164 != null && consentedPhones.has(e164);
   }
 
   if (phase.name === 'loading') {
@@ -144,6 +194,8 @@ export function CheckIn() {
               onSubmit={handleSubmit}
               submitting={phase.name === 'submitting'}
               businessName={business!.name}
+              initialPhone={lastPhone}
+              isPhoneKnownConsented={isPhoneKnownConsented}
             />
           </>
         )}

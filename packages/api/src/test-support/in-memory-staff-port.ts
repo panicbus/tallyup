@@ -113,6 +113,20 @@ export function createInMemoryStaffPort() {
       return { outcome: 'redeemed', businessId: invite.businessId, role: invite.role };
     },
 
+    async revokeInvite({ inviteId, businessId }) {
+      const invite = invites.get(inviteId);
+      if (
+        !invite ||
+        invite.businessId !== businessId ||
+        invite.redeemedAt !== null ||
+        invite.expiresAt.getTime() <= Date.now()
+      ) {
+        return { outcome: 'not_found' as const };
+      }
+      invite.redeemedAt = new Date();
+      return { outcome: 'revoked' as const };
+    },
+
     async listStaff(businessId) {
       const staff = [...staffById.values()]
         .filter((s) => s.businessId === businessId)

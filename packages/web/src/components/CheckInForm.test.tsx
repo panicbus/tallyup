@@ -34,6 +34,26 @@ describe('CheckInForm', () => {
     expect(input.value).toBe('(555) 123-4567');
   });
 
+  it('hides the SMS consent checkbox once the typed number is known to have consent on file', async () => {
+    render(
+      <CheckInForm
+        onSubmit={() => {}}
+        submitting={false}
+        businessName="Test Shop"
+        isPhoneKnownConsented={(phone) => phone.replace(/\D/g, '') === '5551234567'}
+      />,
+    );
+
+    // Shown for a fresh number...
+    await userEvent.type(screen.getByLabelText(/phone/i), '5550000000');
+    expect(screen.queryByRole('checkbox')).not.toBeNull();
+
+    // ...gone once they finish typing the known one.
+    await userEvent.clear(screen.getByLabelText(/phone/i));
+    await userEvent.type(screen.getByLabelText(/phone/i), '5551234567');
+    expect(screen.queryByRole('checkbox')).toBeNull();
+  });
+
   it("names the business in the consent checkbox label, not TallyUp", () => {
     render(<CheckInForm onSubmit={() => {}} submitting={false} businessName="Nico's Bookstore" />);
 

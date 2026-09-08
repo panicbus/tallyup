@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Check, ChevronDown, Copy, UserPlus } from 'lucide-react';
-import { createInvite, deactivateStaffMember, getMe, getStaffRoster } from '../lib/api';
+import { Check, ChevronDown, Copy, UserPlus, X } from 'lucide-react';
+import { createInvite, deactivateStaffMember, getMe, getStaffRoster, revokeInvite } from '../lib/api';
 import type { CreatedInvite, MeResponse, StaffRole, StaffRosterResponse } from '../lib/api';
 import { supabaseClient } from '../lib/supabase';
 import { StaffHeader } from '../components/StaffHeader';
@@ -98,6 +98,23 @@ export function StaffManagement() {
     }
   }
 
+  async function handleRevokeInvite(inviteId: string) {
+    setError(null);
+    // Optimistic: drop it from the list immediately, then reconcile.
+    setRoster((current) =>
+      current
+        ? { ...current, pendingInvites: current.pendingInvites?.filter((i) => i.id !== inviteId) }
+        : current,
+    );
+    try {
+      await revokeInvite(inviteId);
+      await refreshRoster();
+    } catch {
+      setError('Could not revoke that invite.');
+      await refreshRoster();
+    }
+  }
+
   async function handleDeactivate(staffId: string) {
     if (!window.confirm('Deactivate this staff member? They will lose access immediately.')) {
       return;
@@ -183,6 +200,10 @@ export function StaffManagement() {
                       onClick={() => {
                         setInviteRole(role);
                         setRoleMenuOpen(false);
+                        // Changing the role invalidates the code on screen —
+                        // it's already been issued for the old role. Hide it;
+                        // "Invite" mints a fresh one.
+                        setNewInvite(null);
                       }}
                     >
                       {role === 'owner' ? 'Owner' : 'Staff'}
@@ -215,7 +236,7 @@ export function StaffManagement() {
             >
               <p style={{ margin: 0, fontSize: 13 }}>
                 Invite code for a new <strong>{newInviteRole === 'owner' ? 'owner' : 'staff member'}</strong>.
-                Copy it now — it <strong>won't be shown again</strong>.
+                Copy it now (it won't be shown again).
               </p>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                 <code
@@ -313,6 +334,23 @@ export function StaffManagement() {
                     <span className="text-muted" style={{ fontSize: 13 }}>
                       Expires {new Date(invite.expiresAt).toLocaleDateString('en-US', { timeZone: 'UTC' })}
                     </span>
+                    <button
+                      type="button"
+                      aria-label="Revoke this invite"
+                      title="Revoke this invite"
+                      onClick={() => handleRevokeInvite(invite.id)}
+                      style={{
+                        marginLeft: 'auto',
+                        display: 'flex',
+                        padding: 4,
+                        background: 'none',
+                        border: 'none',
+                        color: 'var(--color-neutral-600)',
+                        cursor: 'pointer',
+                      }}
+                    >
+                      <X size={16} />
+                    </button>
                   </li>
                 ))}
               </ul>
