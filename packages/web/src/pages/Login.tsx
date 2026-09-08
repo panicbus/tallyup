@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { X } from 'lucide-react';
 import { supabaseClient } from '../lib/supabase';
 import { getMe } from '../lib/api';
 import { LoginForm } from '../components/LoginForm';
+import { AuthShell } from '../components/AuthShell';
 
 export function Login() {
   const navigate = useNavigate();
@@ -26,36 +26,16 @@ export function Login() {
   }
 
   return (
-    <div className="page">
-      <div className="auth-stage">
-        <div className="page-content" style={{ position: 'relative' }}>
-          <Link
-            to="/"
-            aria-label="Close"
-            style={{
-              position: 'absolute',
-              top: 16,
-              right: 16,
-              color: 'var(--color-neutral-600)',
-              display: 'flex',
-            }}
-          >
-            <X size={20} />
-          </Link>
-          <img
-            src="/logo.svg"
-            alt=""
-            width={72}
-            height={72}
-            style={{ display: 'block', margin: '4px auto 8px' }}
-          />
-          <h2 style={{ margin: 0 }}>Sign in</h2>
-          <LoginForm onSubmit={handleSubmit} submitting={submitting} error={error} />
-          <Link to="/signup" style={{ fontSize: 13, textAlign: 'center' }}>
-            Need an account? Create one
-          </Link>
-        </div>
-      </div>
-    </div>
+    <AuthShell
+      heading="Sign in"
+      footer={
+        <>
+          <Link to="/forgot-password">Forgot your password?</Link>
+          <Link to="/signup">Need an account? Create one</Link>
+        </>
+      }
+    >
+      <LoginForm onSubmit={handleSubmit} submitting={submitting} error={error} />
+    </AuthShell>
   );
 }

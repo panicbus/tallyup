@@ -312,6 +312,13 @@ input[type='number']::-webkit-outer-spin-button {
 .dropdown-menu button:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
 .dropdown-menu button[aria-selected='true'] { font-weight: 700; }
 
+/* — prose: the Terms / Privacy body column — */
+.prose { display: flex; flex-direction: column; gap: 12px; font-size: 14px; line-height: 1.6; max-width: 62ch; }
+.prose p { margin: 0; }
+.prose h2 { font-size: 16px; margin: 10px 0 0; }
+.prose ul { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
+.prose a { color: var(--color-accent-700); }
+
 /* — page shell: every screen centers under this ceiling until desktop
    designs land (Q5) — mobile-first, not mobile-only. — */
 .page {

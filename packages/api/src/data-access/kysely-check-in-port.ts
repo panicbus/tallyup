@@ -324,6 +324,37 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
       return rows.map(toRosterEntry);
     },
 
+    async getBusinessStats({ businessId, since }) {
+      // Three independent counts — same shape as listCustomers' items/total
+      // split, run together so the round trips overlap.
+      const [checkins, newCustomers, rewards] = await Promise.all([
+        db
+          .selectFrom('visits')
+          .select(({ fn }) => fn.countAll().as('count'))
+          .where('business_id', '=', businessId)
+          .where('created_at', '>=', since)
+          .executeTakeFirstOrThrow(),
+        db
+          .selectFrom('customers')
+          .select(({ fn }) => fn.countAll().as('count'))
+          .where('business_id', '=', businessId)
+          .where('created_at', '>=', since)
+          .executeTakeFirstOrThrow(),
+        db
+          .selectFrom('redemptions')
+          .select(({ fn }) => fn.countAll().as('count'))
+          .where('business_id', '=', businessId)
+          .where('created_at', '>=', since)
+          .executeTakeFirstOrThrow(),
+      ]);
+
+      return {
+        checkins: Number(checkins.count),
+        newCustomers: Number(newCustomers.count),
+        rewards: Number(rewards.count),
+      };
+    },
+
     async recordConsent({ businessId, phone, language, ip, userAgent }) {
       await db
         .insertInto('sms_consents')

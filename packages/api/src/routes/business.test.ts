@@ -112,6 +112,58 @@ describe('PATCH /businesses/:slug', () => {
   });
 });
 
+describe('GET /businesses/:slug/stats', () => {
+  it('401s with no Authorization header', async () => {
+    const { app, seedBusiness } = buildTestApp();
+    await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+
+    const response = await app.inject({ method: 'GET', url: '/businesses/test-shop/stats' });
+
+    expect(response.statusCode).toBe(401);
+  });
+
+  it('403s for staff signed in to a different business', async () => {
+    const { app, seedBusiness, loginAsStaffOf } = buildTestApp();
+    await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const otherBusiness = await seedBusiness({ slug: 'other-shop', rewardThreshold: 10 });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/businesses/test-shop/stats',
+      headers: loginAsStaffOf(otherBusiness.id).headers,
+    });
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('returns the trailing-week counts to any staff member of the business, not just owners', async () => {
+    const { app, seedBusiness, loginAsStaffOf } = buildTestApp();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/businesses/test-shop/stats',
+      headers: loginAsStaffOf(business.id, 'staff').headers,
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ checkins: 0, newCustomers: 0, rewards: 0, windowDays: 7 });
+  });
+
+  it('404s for an unknown slug', async () => {
+    const { app, seedBusiness, loginAsStaffOf } = buildTestApp();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+
+    const response = await app.inject({
+      method: 'GET',
+      url: '/businesses/no-such-shop/stats',
+      headers: loginAsStaffOf(business.id).headers,
+    });
+
+    expect(response.statusCode).toBe(404);
+  });
+});
+
 /**
  * The logo-URL trust boundary. Image bytes never pass through this API — the
  * browser uploads straight to Supabase Storage and posts back a URL — so

@@ -51,6 +51,10 @@ export function createInMemoryCheckInPort() {
   // Array, not a Map: append-only, and more than one consent per
   // (businessId, phone) is expected and must never overwrite an earlier one.
   const smsConsents: StoredSmsConsent[] = [];
+  // Event logs the real adapter keeps as `visits` / `redemptions` rows —
+  // needed here only so getBusinessStats can count them.
+  const visits: { businessId: string; createdAt: Date }[] = [];
+  const redemptions: { businessId: string; createdAt: Date }[] = [];
 
   function businessView(business: StoredBusiness): Business {
     return {
@@ -97,7 +101,8 @@ export function createInMemoryCheckInPort() {
         return { outcome: 'not_found' };
       }
       pending.confirmedAt = new Date();
-      void confirmedBy; // recorded on a `visits` row in the real adapter; nothing to store here
+      void confirmedBy; // the real adapter also stamps the `visits` row with it
+      visits.push({ businessId: pending.businessId, createdAt: pending.confirmedAt });
 
       const business = businesses.get(pending.businessId);
       if (!business) {
@@ -119,7 +124,7 @@ export function createInMemoryCheckInPort() {
     },
 
     async redeem({ customerId, confirmedBy }) {
-      void confirmedBy; // recorded on a `redemptions` row in the real adapter; nothing to store here
+      void confirmedBy; // the real adapter also stamps the `redemptions` row with it
       const customer = [...customers.values()].find((c) => c.id === customerId);
       if (!customer) {
         return { outcome: 'not_eligible' };
@@ -135,6 +140,7 @@ export function createInMemoryCheckInPort() {
       }
 
       customer.points -= business.rewardThreshold;
+      redemptions.push({ businessId: customer.businessId, createdAt: new Date() });
 
       return {
         outcome: 'redeemed',
@@ -222,6 +228,16 @@ export function createInMemoryCheckInPort() {
         .filter((c) => c.businessId === businessId)
         .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
         .map((c) => toRosterEntry(c, businessId));
+    },
+
+    async getBusinessStats({ businessId, since }) {
+      const countSince = (rows: { businessId: string; createdAt: Date }[]) =>
+        rows.filter((r) => r.businessId === businessId && r.createdAt >= since).length;
+      return {
+        checkins: countSince(visits),
+        newCustomers: countSince([...customers.values()]),
+        rewards: countSince(redemptions),
+      };
     },
   };
 

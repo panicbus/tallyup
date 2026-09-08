@@ -1,12 +1,14 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Inbox } from 'lucide-react';
-import { confirmCheckin, getMe, getPendingCheckins, redeem } from '../lib/api';
-import type { MeResponse, QueuedPendingCheckin } from '../lib/api';
+import { confirmCheckin, getBusinessStats, getMe, getPendingCheckins, redeem } from '../lib/api';
+import type { BusinessStats, MeResponse, QueuedPendingCheckin } from '../lib/api';
 import { supabaseClient } from '../lib/supabase';
 import { PendingCheckinRow } from '../components/PendingCheckinRow';
 import { ResultCard, type ResultCardData } from '../components/ResultCard';
 import { StaffHeader } from '../components/StaffHeader';
+import { StatStrip } from '../components/StatStrip';
+import { CheckInQrCode } from '../components/CheckInQrCode';
 
 const POLL_INTERVAL_MS = 3000;
 const CLOCK_TICK_MS = 1000;
@@ -22,8 +24,19 @@ export function Dashboard() {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [queue, setQueue] = useState<QueuedPendingCheckin[]>([]);
   const [results, setResults] = useState<TimedResult[]>([]);
+  const [stats, setStats] = useState<BusinessStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
+
+  // Stats change on the scale of visits, not seconds — fetched on load and
+  // after each confirm/redeem, never on the queue poll.
+  const refreshStats = useCallback(() => {
+    getBusinessStats(slug)
+      .then(setStats)
+      .catch(() => {
+        /* a missing stats strip isn't worth surfacing an error for */
+      });
+  }, [slug]);
 
   useEffect(() => {
     getMe().then((result) => {
@@ -36,8 +49,9 @@ export function Dashboard() {
         return;
       }
       setMe(result);
+      refreshStats();
     });
-  }, [slug, navigate]);
+  }, [slug, navigate, refreshStats]);
 
   // Ticks independently of the data poll so wait times count up smoothly
   // instead of jumping in 3-second steps.
@@ -73,6 +87,7 @@ export function Dashboard() {
   async function handleConfirm(pendingCheckinId: string) {
     const result = await confirmCheckin(pendingCheckinId);
     setQueue((current) => current.filter((item) => item.id !== pendingCheckinId));
+    refreshStats();
 
     if (result.outcome === 'confirmed') {
       setResults((current) => [
@@ -92,6 +107,7 @@ export function Dashboard() {
 
   async function handleRedeem(customerId: string) {
     const result = await redeem(customerId);
+    refreshStats();
 
     if (result.outcome === 'redeemed') {
       setResults((current) =>
@@ -145,6 +161,15 @@ export function Dashboard() {
           </p>
         )}
 
+        {stats && (
+          <StatStrip
+            checkins={stats.checkins}
+            newCustomers={stats.newCustomers}
+            rewards={stats.rewards}
+            windowDays={stats.windowDays}
+          />
+        )}
+
         {results.length > 0 && (
           <ul style={{ margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {results.map((result) => (
@@ -165,19 +190,38 @@ export function Dashboard() {
         </div>
 
         {queue.length === 0 ? (
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: 8,
-              padding: '40px 10px',
-              color: 'var(--color-neutral-600)',
-            }}
-          >
-            <Inbox size={28} />
-            <p style={{ margin: 0, fontSize: 14 }}>All caught up — nobody's waiting.</p>
-          </div>
+          stats && stats.checkins === 0 && stats.newCustomers === 0 && stats.rewards === 0 ? (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 12,
+                padding: '24px 10px',
+                textAlign: 'center',
+              }}
+            >
+              <p style={{ margin: 0, fontSize: 14, maxWidth: 300, color: 'var(--color-neutral-600)' }}>
+                No check-ins yet. Print your QR code and put it where customers can see it — by the register or on the
+                counter.
+              </p>
+              <CheckInQrCode slug={slug} size={150} />
+            </div>
+          ) : (
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                gap: 8,
+                padding: '40px 10px',
+                color: 'var(--color-neutral-600)',
+              }}
+            >
+              <Inbox size={28} />
+              <p style={{ margin: 0, fontSize: 14 }}>All caught up — nobody's waiting.</p>
+            </div>
+          )
         ) : (
           <ul style={{ margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
             {queue.map((checkin) => (

@@ -142,6 +142,20 @@ export async function getPendingCheckins(slug: string): Promise<QueuedPendingChe
   return response.json();
 }
 
+export interface BusinessStats {
+  checkins: number;
+  newCustomers: number;
+  rewards: number;
+  /** The trailing window the counts cover — the UI label reads "Past N days". */
+  windowDays: number;
+}
+
+export async function getBusinessStats(slug: string): Promise<BusinessStats> {
+  const response = await fetch(`${API_URL}/businesses/${slug}/stats`, { headers: await authHeaders() });
+  if (!response.ok) throw new Error(`Failed to load stats (${response.status})`);
+  return response.json();
+}
+
 export async function getCustomers(
   slug: string,
   params: { page: number; sort: CustomerSortField; dir: SortDirection },

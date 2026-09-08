@@ -447,6 +447,44 @@ export function runCheckInPortContractTests<Fixtures extends { realDb?: unknown 
 
       expect(all[0]?.hasSmsConsent).toBe(true);
     });
+
+    test('getBusinessStats counts check-ins, new customers, and rewards since the cutoff', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 1 });
+
+      // Two customers; the first checks in twice (so 3 check-ins, 2 new
+      // customers) and redeems once.
+      const firstId = await checkInNTimes(port, business, '+15551230040', 2);
+      await checkInNTimes(port, business, '+15551230041', 1);
+      await port.redeem({ customerId: firstId, confirmedBy: business.confirmedBy });
+
+      const stats = await port.getBusinessStats({ businessId: business.id, since: new Date(Date.now() - 60_000) });
+
+      expect(stats).toEqual({ checkins: 3, newCustomers: 2, rewards: 1 });
+    });
+
+    test('getBusinessStats excludes everything before the cutoff', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 1 });
+      const id = await checkInNTimes(port, business, '+15551230042', 1);
+      await port.redeem({ customerId: id, confirmedBy: business.confirmedBy });
+
+      const stats = await port.getBusinessStats({ businessId: business.id, since: new Date(Date.now() + 60_000) });
+
+      expect(stats).toEqual({ checkins: 0, newCustomers: 0, rewards: 0 });
+    });
+
+    test('getBusinessStats is scoped to one business', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const businessA = await seedBusiness({ slug: `contract-a-${crypto.randomUUID()}`, rewardThreshold: 1 });
+      const businessB = await seedBusiness({ slug: `contract-b-${crypto.randomUUID()}`, rewardThreshold: 1 });
+      const id = await checkInNTimes(port, businessB, '+15551230043', 1);
+      await port.redeem({ customerId: id, confirmedBy: businessB.confirmedBy });
+
+      const stats = await port.getBusinessStats({ businessId: businessA.id, since: new Date(Date.now() - 60_000) });
+
+      expect(stats).toEqual({ checkins: 0, newCustomers: 0, rewards: 0 });
+    });
   });
 }
 

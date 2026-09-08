@@ -54,6 +54,18 @@ export interface CustomerRosterPage {
 export type CustomerSortField = 'points' | 'joined';
 export type SortDirection = 'asc' | 'desc';
 
+/** Headline counts for the staff dashboard. `checkins`/`newCustomers`/
+ * `rewards` are all "since the cutoff the caller passed"; the window itself
+ * is the caller's choice, not baked in here. */
+export interface BusinessStats {
+  /** Confirmed check-ins (`visits` rows) recorded since the cutoff. */
+  checkins: number;
+  /** Customers first seen at this business since the cutoff. */
+  newCustomers: number;
+  /** Rewards redeemed since the cutoff. */
+  rewards: number;
+}
+
 export type ConfirmCheckinResult =
   | { outcome: 'confirmed'; customer: Customer; business: Business }
   | { outcome: 'not_found' };
@@ -132,4 +144,7 @@ export interface CheckInPort {
    * about what it does, and pilot scale (a few hundred customers per shop at
    * most) makes an unpaginated fetch fine. */
   listAllCustomers(businessId: string): Promise<CustomerRosterEntry[]>;
+  /** Headline dashboard counts for one business since `since`. The window is
+   * the caller's — this just counts rows past the cutoff. */
+  getBusinessStats(input: { businessId: string; since: Date }): Promise<BusinessStats>;
 }

@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { updateBusiness } from '../data-access/update-business.js';
 import { isValidLogoUrlOrAbsent } from '../services/logo-url.js';
+import { getRecentBusinessStats } from '../services/stats.js';
 import { requireStaff } from './require-staff.js';
 import { requireOwner } from './require-owner.js';
 import { ownerBySlugParam, requireOwnership } from './require-ownership.js';
@@ -37,6 +38,16 @@ export async function businessRoutes(app: FastifyInstance, deps: AppDependencies
       // Past the guard, the slug's business is the caller's own business.
       const updated = await updateBusiness(deps.db, request.staff!.business.id, parsedBody.data);
       return reply.code(200).send(updated);
+    },
+  );
+
+  app.get(
+    '/businesses/:slug/stats',
+    // All staff, not owner-only — same call as the customer roster.
+    { preHandler: [requireStaff(deps), requireOwnership(deps, ownerBySlugParam)] },
+    async (request, reply) => {
+      const stats = await getRecentBusinessStats(deps.checkInPort, request.staff!.business.id);
+      return reply.code(200).send(stats);
     },
   );
 }
