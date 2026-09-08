@@ -51,17 +51,24 @@ export async function checkInRoutes(app: FastifyInstance, deps: AppDependencies)
         return reply.code(404).send({ error: 'business_not_found' });
       }
 
-      const pendingCheckin = await deps.checkInPort.createPendingCheckin({
-        businessId: business.id,
-        phone: parsedBody.data.phone,
-      });
+      const consentGivenNow = parsedBody.data.smsConsent;
+
+      // Both touch only (business, phone) and neither needs the other's
+      // result — run them together. `hasConsented` is skipped entirely when
+      // the box is ticked, since consent is being given right now.
+      const [pendingCheckin, priorConsent] = await Promise.all([
+        deps.checkInPort.createPendingCheckin({ businessId: business.id, phone: parsedBody.data.phone }),
+        consentGivenNow
+          ? false
+          : deps.checkInPort.hasConsented({ businessId: business.id, phone: parsedBody.data.phone }),
+      ]);
 
       // Deliberately outside the fraud-gate transaction and independent of
       // the pending check-in's own lifecycle — consent is recorded the
       // instant it's given, by the customer, not up to 20 minutes later
       // when staff confirm. An unticked box writes nothing and revokes
       // nothing; a prior consent is never touched.
-      if (parsedBody.data.smsConsent) {
+      if (consentGivenNow) {
         await deps.checkInPort.recordConsent({
           businessId: business.id,
           phone: parsedBody.data.phone,
@@ -74,11 +81,7 @@ export async function checkInRoutes(app: FastifyInstance, deps: AppDependencies)
       // So the customer-facing form can drop the consent checkbox on a
       // repeat check-in for a number that has already opted in — just
       // ticked, or opted in on any earlier visit.
-      const hasSmsConsent =
-        parsedBody.data.smsConsent ||
-        (await deps.checkInPort.hasConsented({ businessId: business.id, phone: parsedBody.data.phone }));
-
-      return reply.code(200).send({ ...pendingCheckin, hasSmsConsent });
+      return reply.code(200).send({ ...pendingCheckin, hasSmsConsent: consentGivenNow || priorConsent });
     },
   );
 
