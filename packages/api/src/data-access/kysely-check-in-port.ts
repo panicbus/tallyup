@@ -204,14 +204,23 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
     async listPendingCheckins(businessId) {
       const rows = await db
         .selectFrom('pending_checkins')
-        .select(['id', 'phone', 'created_at'])
+        .select(['id', 'phone', 'expires_at'])
         .where('business_id', '=', businessId)
         .where('confirmed_at', 'is', null)
         .where('expires_at', '>', new Date())
-        .orderBy('created_at', 'asc')
+        .orderBy('expires_at', 'asc')
         .execute();
 
-      return rows.map((row) => ({ id: row.id, phone: row.phone, createdAt: new Date(row.created_at) }));
+      // Not the row's `created_at`: a returning customer's pending row is
+      // reused (upserted) on every check-in, so `created_at` still points
+      // at their first-ever visit and the queue would show an ever-growing
+      // wait. `expires_at` is always TTL past the current attempt's start,
+      // so this is when *this* wait began — matching the in-memory port.
+      return rows.map((row) => ({
+        id: row.id,
+        phone: row.phone,
+        createdAt: new Date(new Date(row.expires_at).getTime() - PENDING_CHECKIN_TTL_MS),
+      }));
     },
 
     async getCheckinStatus(pendingCheckinId) {

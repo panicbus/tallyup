@@ -162,6 +162,24 @@ export function runCheckInPortContractTests<Fixtures extends { realDb?: unknown 
       expect(queue.map((q) => q.id)).toEqual([first.id, second.id]);
     });
 
+    test('a repeat check-in resets the queued wait, not counts from the first visit', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      const phone = '+15551230099';
+
+      await port.createPendingCheckin({ businessId: business.id, phone });
+      const staleWait = (await port.listPendingCheckins(business.id))[0]!.createdAt;
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      const beforeSecond = Date.now();
+      await port.createPendingCheckin({ businessId: business.id, phone });
+      const freshWait = (await port.listPendingCheckins(business.id))[0]!.createdAt;
+
+      expect(freshWait.getTime()).toBeGreaterThan(staleWait.getTime());
+      expect(freshWait.getTime()).toBeGreaterThanOrEqual(beforeSecond - 2000);
+      expect(freshWait.getTime()).toBeLessThanOrEqual(Date.now() + 2000);
+    });
+
     test('excludes an expired pending check-in from the queue', async ({ realDb }) => {
       const { port, seedBusiness, seedExpiredPendingCheckin } = await createSetup({ realDb } as Fixtures);
       const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
