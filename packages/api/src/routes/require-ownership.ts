@@ -23,6 +23,11 @@ export const ownerByCustomerParam: OwnerResolver = async (deps, request) => {
   return deps.checkInPort.findCustomerBusinessId(id);
 };
 
+export const ownerByStaffIdParam: OwnerResolver = async (deps, request) => {
+  const { id } = request.params as { id: string };
+  return deps.staffPort.findStaffBusinessId(id);
+};
+
 export interface RequireOwnershipOptions {
   /**
    * What a missing resource means for this route.

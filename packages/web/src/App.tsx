@@ -5,6 +5,8 @@ import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { Onboarding } from './pages/Onboarding';
 import { Settings } from './pages/Settings';
+import { Customers } from './pages/Customers';
+import { StaffManagement } from './pages/StaffManagement';
 
 function Home() {
   return (
@@ -30,7 +32,9 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/onboarding" element={<Onboarding />} />
         <Route path="/dashboard/:slug" element={<Dashboard />} />
+        <Route path="/dashboard/:slug/customers" element={<Customers />} />
         <Route path="/dashboard/:slug/settings" element={<Settings />} />
+        <Route path="/dashboard/:slug/staff" element={<StaffManagement />} />
         <Route path="/checkin/:slug" element={<CheckIn />} />
       </Routes>
     </BrowserRouter>

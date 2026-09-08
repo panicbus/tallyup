@@ -24,9 +24,34 @@ describe('getCheckinStatus', () => {
 
     expect(status).toMatchObject({
       status: 'confirmed',
-      customer: { phone: '+15551234567', points: 1 },
+      customer: { points: 1 },
       eligibleForRedemption: true,
     });
+  });
+
+  it('never includes the raw phone number, even though it is the customer\'s own', async () => {
+    const { port, seedBusiness } = createInMemoryCheckInPort();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const pending = await port.createPendingCheckin({ businessId: business.id, phone: '+15551234567' });
+    await port.confirmCheckin({ pendingCheckinId: pending.id, confirmedBy: randomUUID() });
+
+    const status = await getCheckinStatus(port, pending.id);
+
+    expect(status).toMatchObject({ status: 'confirmed' });
+    if (status.status === 'confirmed') {
+      expect(status.customer).not.toHaveProperty('phone');
+    }
+  });
+
+  it('reports not_found for a confirmed check-in past the visibility window — never a live points read', async () => {
+    const { port, seedBusiness, seedStaleConfirmedPendingCheckin } = createInMemoryCheckInPort();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const pendingCheckinId = await seedStaleConfirmedPendingCheckin({
+      businessId: business.id,
+      phone: '+15551234567',
+    });
+
+    expect(await getCheckinStatus(port, pendingCheckinId)).toEqual({ status: 'not_found' });
   });
 
   it('reports not_found for an unknown id', async () => {

@@ -47,7 +47,7 @@ async function twoBusinesses(db: Kysely<Database>) {
 }
 
 describe('migrations', () => {
-  test('create all six expected tables', async ({ db }) => {
+  test('create all eight expected tables', async ({ db }) => {
     const tables = await sql<{ table_name: string }>`
       select table_name from information_schema.tables
       where table_schema = 'public'
@@ -60,7 +60,9 @@ describe('migrations', () => {
       'customers',
       'pending_checkins',
       'redemptions',
+      'sms_consents',
       'staff',
+      'staff_invites',
       'visits',
     ]);
   });

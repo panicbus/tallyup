@@ -13,7 +13,7 @@ describe('confirmCheckin', () => {
 
     expect(result).toMatchObject({
       outcome: 'confirmed',
-      customer: { phone: '•••-•••-4567', points: 1 },
+      customer: { maskedPhone: '•••-•••-4567', points: 1 },
       eligibleForRedemption: false,
     });
   });

@@ -66,6 +66,49 @@ describe('POST /businesses/:slug/pending-checkins', () => {
 
     expect(response.statusCode).toBe(404);
   });
+
+  it('records consent when smsConsent is true', async () => {
+    const { port, seedBusiness } = createInMemoryCheckInPort();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const { app } = buildTestApp(port);
+
+    await app.inject({
+      method: 'POST',
+      url: '/businesses/test-shop/pending-checkins',
+      payload: { phone: '555-123-4567', smsConsent: true },
+    });
+
+    expect(await port.hasConsented({ businessId: business.id, phone: '+15551234567' })).toBe(true);
+  });
+
+  it('records no consent when smsConsent is false', async () => {
+    const { port, seedBusiness } = createInMemoryCheckInPort();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const { app } = buildTestApp(port);
+
+    await app.inject({
+      method: 'POST',
+      url: '/businesses/test-shop/pending-checkins',
+      payload: { phone: '555-123-4567', smsConsent: false },
+    });
+
+    expect(await port.hasConsented({ businessId: business.id, phone: '+15551234567' })).toBe(false);
+  });
+
+  it('records no consent when smsConsent is omitted entirely — absent means no, not yes', async () => {
+    const { port, seedBusiness } = createInMemoryCheckInPort();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const { app } = buildTestApp(port);
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/businesses/test-shop/pending-checkins',
+      payload: { phone: '555-123-4567' },
+    });
+
+    expect(response.statusCode).toBe(200);
+    expect(await port.hasConsented({ businessId: business.id, phone: '+15551234567' })).toBe(false);
+  });
 });
 
 describe('POST /pending-checkins/:id/confirm', () => {
@@ -272,7 +315,25 @@ describe('GET /pending-checkins/:id/status', () => {
     const response = await app.inject({ method: 'GET', url: `/pending-checkins/${pending.id}/status` });
 
     expect(response.statusCode).toBe(200);
-    expect(response.json()).toMatchObject({ status: 'confirmed', customer: { points: 1 } });
+    const body = response.json();
+    expect(body).toMatchObject({ status: 'confirmed', customer: { points: 1 } });
+    // Public and unauthenticated — must never round-trip the raw phone,
+    // even though it's "the customer's own data."
+    expect(body.customer).not.toHaveProperty('phone');
+  });
+
+  it('404s for a confirmed check-in once past the visibility window, instead of a live points read', async () => {
+    const { port, seedBusiness, seedStaleConfirmedPendingCheckin } = createInMemoryCheckInPort();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const pendingCheckinId = await seedStaleConfirmedPendingCheckin({
+      businessId: business.id,
+      phone: '+15551234567',
+    });
+    const { app } = buildTestApp(port);
+
+    const response = await app.inject({ method: 'GET', url: `/pending-checkins/${pendingCheckinId}/status` });
+
+    expect(response.statusCode).toBe(404);
   });
 
   it('404s for an unknown pending check-in id', async () => {

@@ -8,9 +8,13 @@ export type CheckinStatusServiceResult =
   | { status: 'not_found' };
 
 /**
- * Public, unauthenticated status poll for the customer's own check-in — no
- * masking (it's their own data), but still derives eligibility the same
- * way confirmCheckin's service does, so the card can show reward status.
+ * Public, unauthenticated status poll for the customer's own check-in.
+ * Still derives eligibility the same way confirmCheckin's service does, so
+ * the card can show reward status. The port already narrows the confirmed
+ * customer shape (no phone) and time-bounds how long `confirmed` is
+ * reported at all — see CheckinStatusCustomer and
+ * CONFIRMED_STATUS_VISIBILITY_MS — since pending-checkin rows are never
+ * deleted and this endpoint has no auth to otherwise limit who can poll it.
  */
 export async function getCheckinStatus(
   port: Pick<CheckInPort, 'getCheckinStatus'>,

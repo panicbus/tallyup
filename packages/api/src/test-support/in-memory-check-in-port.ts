@@ -2,6 +2,11 @@ import { randomUUID } from 'node:crypto';
 import type { Business, CheckInPort } from '../data-access/check-in-port.js';
 
 const PENDING_CHECKIN_TTL_MS = 20 * 60_000;
+// Mirrors kysely-check-in-port.ts's CONFIRMED_STATUS_VISIBILITY_MS — kept as
+// a duplicated literal rather than a shared import, same as
+// PENDING_CHECKIN_TTL_MS above; the contract suite is what keeps the two
+// adapters from drifting.
+const CONFIRMED_STATUS_VISIBILITY_MS = 5 * 60_000;
 
 interface StoredBusiness extends Business {
   slug: string;
@@ -21,6 +26,16 @@ interface StoredCustomer {
   businessId: string;
   phone: string;
   points: number;
+  createdAt: Date;
+}
+
+interface StoredSmsConsent {
+  businessId: string;
+  phone: string;
+  language: string;
+  ip: string | null;
+  userAgent: string | null;
+  consentedAt: Date;
 }
 
 /**
@@ -33,6 +48,9 @@ export function createInMemoryCheckInPort() {
   const businesses = new Map<string, StoredBusiness>();
   const pendingCheckins = new Map<string, StoredPendingCheckin>();
   const customers = new Map<string, StoredCustomer>();
+  // Array, not a Map: append-only, and more than one consent per
+  // (businessId, phone) is expected and must never overwrite an earlier one.
+  const smsConsents: StoredSmsConsent[] = [];
 
   function businessView(business: StoredBusiness): Business {
     return {
@@ -90,7 +108,7 @@ export function createInMemoryCheckInPort() {
       const existingCustomer = customers.get(customerKey);
       const customer: StoredCustomer = existingCustomer
         ? { ...existingCustomer, points: existingCustomer.points + 1 }
-        : { id: randomUUID(), businessId: pending.businessId, phone: pending.phone, points: 1 };
+        : { id: randomUUID(), businessId: pending.businessId, phone: pending.phone, points: 1, createdAt: new Date() };
       customers.set(customerKey, customer);
 
       return {
@@ -140,6 +158,10 @@ export function createInMemoryCheckInPort() {
       }
 
       if (pending.confirmedAt !== null) {
+        if (Date.now() - pending.confirmedAt.getTime() > CONFIRMED_STATUS_VISIBILITY_MS) {
+          return { status: 'not_found' };
+        }
+
         const business = businesses.get(pending.businessId);
         if (!business) {
           throw new Error(`no business seeded for id ${pending.businessId}`);
@@ -150,7 +172,7 @@ export function createInMemoryCheckInPort() {
         }
         return {
           status: 'confirmed',
-          customer: { id: customer.id, phone: customer.phone, points: customer.points },
+          customer: { id: customer.id, points: customer.points },
           business: businessView(business),
         };
       }
@@ -172,7 +194,46 @@ export function createInMemoryCheckInPort() {
       }
       return null;
     },
+
+    async recordConsent({ businessId, phone, language, ip, userAgent }) {
+      smsConsents.push({ businessId, phone, language, ip, userAgent, consentedAt: new Date() });
+    },
+
+    async hasConsented({ businessId, phone }) {
+      return smsConsents.some((c) => c.businessId === businessId && c.phone === phone);
+    },
+
+    async listCustomers({ businessId, page, pageSize, sort, dir }) {
+      const all = [...customers.values()].filter((c) => c.businessId === businessId);
+      const sign = dir === 'asc' ? 1 : -1;
+      const sorted = all.sort((a, b) => {
+        const diff = sort === 'points' ? a.points - b.points : a.createdAt.getTime() - b.createdAt.getTime();
+        return diff * sign;
+      });
+
+      const start = (page - 1) * pageSize;
+      const items = sorted.slice(start, start + pageSize).map((c) => toRosterEntry(c, businessId));
+
+      return { items, total: all.length, page, pageSize };
+    },
+
+    async listAllCustomers(businessId) {
+      return [...customers.values()]
+        .filter((c) => c.businessId === businessId)
+        .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+        .map((c) => toRosterEntry(c, businessId));
+    },
   };
+
+  function toRosterEntry(customer: StoredCustomer, businessId: string) {
+    return {
+      id: customer.id,
+      phone: customer.phone,
+      points: customer.points,
+      createdAt: customer.createdAt,
+      hasSmsConsent: smsConsents.some((s) => s.businessId === businessId && s.phone === customer.phone),
+    };
+  }
 
   async function seedBusiness(
     input: {
@@ -212,5 +273,34 @@ export function createInMemoryCheckInPort() {
     return id;
   }
 
-  return { port, seedBusiness, seedExpiredPendingCheckin };
+  /** A pending check-in confirmed long enough ago that the status poll's
+   * visibility window has already lapsed — for exercising the "old
+   * confirmed id returns nothing sensitive" behavior identically across
+   * both adapters via the shared contract suite. */
+  async function seedStaleConfirmedPendingCheckin(input: { businessId: string; phone: string }): Promise<string> {
+    const customerKey = `${input.businessId}:${input.phone}`;
+    if (!customers.has(customerKey)) {
+      customers.set(customerKey, {
+        id: randomUUID(),
+        businessId: input.businessId,
+        phone: input.phone,
+        points: 1,
+        createdAt: new Date(),
+      });
+    }
+
+    const id = randomUUID();
+    const confirmedAt = new Date(Date.now() - CONFIRMED_STATUS_VISIBILITY_MS - 1000);
+    pendingCheckins.set(id, {
+      id,
+      businessId: input.businessId,
+      phone: input.phone,
+      createdAt: confirmedAt,
+      expiresAt: new Date(confirmedAt.getTime() + PENDING_CHECKIN_TTL_MS),
+      confirmedAt,
+    });
+    return id;
+  }
+
+  return { port, seedBusiness, seedExpiredPendingCheckin, seedStaleConfirmedPendingCheckin };
 }

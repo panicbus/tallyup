@@ -1,13 +1,15 @@
 import { useState, type FormEvent } from 'react';
-import { phoneSchema } from '@tallyup/shared';
+import { phoneSchema, smsConsentLanguageV1 } from '@tallyup/shared';
 
 interface CheckInFormProps {
-  onSubmit: (phone: string) => void;
+  onSubmit: (phone: string, smsConsent: boolean) => void;
   submitting: boolean;
+  businessName: string;
 }
 
-export function CheckInForm({ onSubmit, submitting }: CheckInFormProps) {
+export function CheckInForm({ onSubmit, submitting, businessName }: CheckInFormProps) {
   const [phone, setPhone] = useState('');
+  const [smsConsent, setSmsConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function handleSubmit(event: FormEvent) {
@@ -18,7 +20,7 @@ export function CheckInForm({ onSubmit, submitting }: CheckInFormProps) {
       return;
     }
     setError(null);
-    onSubmit(phone);
+    onSubmit(phone, smsConsent);
   }
 
   return (
@@ -42,6 +44,15 @@ export function CheckInForm({ onSubmit, submitting }: CheckInFormProps) {
           </p>
         )}
       </div>
+      <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, cursor: 'pointer' }}>
+        <input
+          type="checkbox"
+          checked={smsConsent}
+          onChange={(e) => setSmsConsent(e.target.checked)}
+          style={{ marginTop: 2 }}
+        />
+        <span className="text-muted">{smsConsentLanguageV1(businessName)}</span>
+      </label>
       <button
         type="submit"
         className="btn btn-primary btn-block"

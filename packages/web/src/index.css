@@ -196,6 +196,28 @@ input[type='number']::-webkit-outer-spin-button {
 .elev-md { box-shadow: var(--shadow-md); }
 .elev-lg { box-shadow: var(--shadow-lg); }
 
+/* — tables — ported from design/organic-styles.css; the customer roster is
+   the first table in the app, so this was simply never brought over before
+   now. — */
+.table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.table th {
+  text-align: left; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text) 60%, transparent);
+  padding: var(--space-2); border-bottom: 1px solid var(--color-divider);
+}
+.table td {
+  padding: var(--space-2);
+  border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+}
+.table tbody tr:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
+
+/* — roster layout: a card list below the desktop breakpoint, matching every
+   other mobile list in the app (no horizontal-scroll pattern exists below
+   900px anywhere else, and a 4-column table has no business being the
+   first). The table above it reuses .table as-is. — */
+.roster-table-wrap { display: none; overflow-x: auto; }
+.roster-cards { display: flex; flex-direction: column; gap: 12px; }
+
 /* — tags — */
 .tag {
   display: inline-flex; align-items: center; font-size: 11px;
@@ -338,6 +360,9 @@ input[type='number']::-webkit-outer-spin-button {
     padding: 40px !important;
     max-width: 640px !important;
   }
+
+  .roster-table-wrap { display: block; }
+  .roster-cards { display: none; }
 
   .page:has(.auth-stage) {
     justify-content: center;

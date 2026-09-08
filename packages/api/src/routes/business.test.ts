@@ -5,6 +5,7 @@ import { createDb } from '../data-access/db.js';
 import { createInMemoryCheckInPort } from '../test-support/in-memory-check-in-port.js';
 import { createInMemoryAuthPort } from '../test-support/in-memory-auth-port.js';
 import { createInMemoryStaffPort } from '../test-support/in-memory-staff-port.js';
+import type { StaffRole } from '../data-access/types.js';
 
 /**
  * The branches of PATCH /businesses/:slug that never reach the database —
@@ -23,9 +24,9 @@ function buildTestApp() {
 
   // Returns authUserId alongside the header because the logo-URL guard
   // checks the URL's folder against exactly that id.
-  function loginAsStaffOf(businessId: string) {
+  function loginAsStaffOf(businessId: string, role: StaffRole = 'owner') {
     const authUserId = randomUUID();
-    const staff = addStaff({ authUserId, businessId });
+    const staff = addStaff({ authUserId, businessId, role });
     return {
       authUserId,
       headers: { authorization: `Bearer ${issueToken({ userId: authUserId, email: staff.email })}` },
@@ -62,6 +63,20 @@ describe('PATCH /businesses/:slug', () => {
       method: 'PATCH',
       url: '/businesses/test-shop',
       headers: loginAsStaffOf(otherBusiness.id).headers,
+      payload: validBody,
+    });
+
+    expect(response.statusCode).toBe(403);
+  });
+
+  it('403s for a non-owner staff member of the caller\'s own business', async () => {
+    const { app, seedBusiness, loginAsStaffOf } = buildTestApp();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+
+    const response = await app.inject({
+      method: 'PATCH',
+      url: '/businesses/test-shop',
+      headers: loginAsStaffOf(business.id, 'staff').headers,
       payload: validBody,
     });
 

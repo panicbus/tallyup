@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { updateBusiness } from '../data-access/update-business.js';
 import { isValidLogoUrlOrAbsent } from '../services/logo-url.js';
 import { requireStaff } from './require-staff.js';
+import { requireOwner } from './require-owner.js';
 import { ownerBySlugParam, requireOwnership } from './require-ownership.js';
 import type { AppDependencies } from '../app.js';
 
@@ -18,7 +19,7 @@ const updateBusinessBodySchema = z.object({
 export async function businessRoutes(app: FastifyInstance, deps: AppDependencies): Promise<void> {
   app.patch(
     '/businesses/:slug',
-    { preHandler: [requireStaff(deps), requireOwnership(deps, ownerBySlugParam)] },
+    { preHandler: [requireStaff(deps), requireOwner, requireOwnership(deps, ownerBySlugParam)] },
     async (request, reply) => {
       const parsedBody = updateBusinessBodySchema.safeParse(request.body);
       if (!parsedBody.success) {

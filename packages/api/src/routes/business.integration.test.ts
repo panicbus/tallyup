@@ -4,7 +4,7 @@ import { afterEach, beforeEach, vi } from 'vitest';
 import { describe, expect, test } from '../test-support/integration-test.js';
 import { buildApp } from '../app.js';
 import { createKyselyCheckInPort } from '../data-access/kysely-check-in-port.js';
-import { createKyselyStaffPort } from '../data-access/staff-port.js';
+import { createKyselyStaffPort } from '../data-access/kysely-staff-port.js';
 import { createInMemoryAuthPort } from '../test-support/in-memory-auth-port.js';
 import type { Database } from '../data-access/types.js';
 

@@ -4,6 +4,8 @@ import { checkInRoutes } from './check-in.js';
 import { meRoutes } from './me.js';
 import { onboardingRoutes } from './onboarding.js';
 import { businessRoutes } from './business.js';
+import { customerRoutes } from './customers.js';
+import { staffRoutes } from './staff.js';
 import type { AppDependencies } from '../app.js';
 
 export async function registerRoutes(app: FastifyInstance, deps: AppDependencies): Promise<void> {
@@ -12,4 +14,6 @@ export async function registerRoutes(app: FastifyInstance, deps: AppDependencies
   await app.register(meRoutes, deps);
   await app.register(onboardingRoutes, deps);
   await app.register(businessRoutes, deps);
+  await app.register(customerRoutes, deps);
+  await app.register(staffRoutes, deps);
 }

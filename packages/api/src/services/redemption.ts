@@ -1,9 +1,13 @@
-import type { CheckInPort, RedeemResult } from '../data-access/check-in-port.js';
+import type { CheckInPort, Customer, RedeemResult } from '../data-access/check-in-port.js';
 import { isEligibleForRedemption } from './eligibility.js';
 import { maskPhone } from './phone-masking.js';
 
 export type RedeemServiceResult =
-  | (Extract<RedeemResult, { outcome: 'redeemed' }> & { eligibleForRedemption: boolean })
+  | (Omit<Extract<RedeemResult, { outcome: 'redeemed' }>, 'customer'> & {
+      // Renamed from `phone` — see services/check-in.ts for why.
+      customer: Omit<Customer, 'phone'> & { maskedPhone: string };
+      eligibleForRedemption: boolean;
+    })
   | { outcome: 'not_eligible' };
 
 /**
@@ -22,9 +26,10 @@ export async function redeem(
     return result;
   }
 
+  const { phone, ...customerRest } = result.customer;
   return {
     ...result,
-    customer: { ...result.customer, phone: maskPhone(result.customer.phone) },
+    customer: { ...customerRest, maskedPhone: maskPhone(phone) },
     eligibleForRedemption: isEligibleForRedemption(result.customer.points, result.business.rewardThreshold),
   };
 }

@@ -62,4 +62,16 @@ describe('findStaffByAuthUserId', () => {
 
     expect(result).toBeNull();
   });
+
+  test('returns null for a deactivated staff member — a fired employee cannot keep authenticating', async ({
+    db,
+  }) => {
+    const authUserId = randomUUID();
+    const { staff } = await seedBusinessWithStaff(db, authUserId);
+    await db.updateTable('staff').set({ deactivated_at: new Date() }).where('id', '=', staff.id).execute();
+
+    const result = await findStaffByAuthUserId(db, authUserId);
+
+    expect(result).toBeNull();
+  });
 });

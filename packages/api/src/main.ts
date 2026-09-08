@@ -2,7 +2,7 @@ import './data-access/load-env.js';
 import { buildApp } from './app.js';
 import { createDb, requireEnv } from './data-access/db.js';
 import { createKyselyCheckInPort } from './data-access/kysely-check-in-port.js';
-import { createKyselyStaffPort } from './data-access/staff-port.js';
+import { createKyselyStaffPort } from './data-access/kysely-staff-port.js';
 import { createSupabaseAuthPort } from './data-access/supabase-auth-port.js';
 
 const db = createDb(requireEnv('DATABASE_URL'));

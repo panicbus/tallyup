@@ -30,7 +30,10 @@ nothing branches on it yet.
 Someone earning points at one Business, identified by phone number, normalized
 to E.164. Scoped per Business — the same phone at two shops is two Customers
 with independent balances. Staff-facing views only ever see a **masked phone**
-(`•••-•••-4567`); the full number never leaves the server.
+(`•••-•••-4567`). The public, unauthenticated check-in status poll (the
+customer's own device) never receives a phone number at all — it already
+knows its own — and only reports a confirmed result for a short window after
+confirmation, since pending-checkin ids are never deleted.
 
 ## Pending check-in
 

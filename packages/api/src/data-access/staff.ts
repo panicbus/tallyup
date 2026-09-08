@@ -1,10 +1,10 @@
 import type { Kysely } from 'kysely';
-import type { Database } from './types.js';
+import type { Database, StaffRole } from './types.js';
 
 export interface StaffContext {
   id: string;
   email: string;
-  role: string;
+  role: StaffRole;
   business: {
     id: string;
     name: string;
@@ -40,6 +40,10 @@ export async function findStaffByAuthUserId(db: Kysely<Database>, authUserId: st
       'businesses.logo_url as logoUrl',
     ])
     .where('staff.auth_user_id', '=', authUserId)
+    // A deactivated staff member must not resolve to a valid identity here
+    // — this is the one enforcement point that actually matters; the UI
+    // hiding a deactivated person is cosmetic without this.
+    .where('staff.deactivated_at', 'is', null)
     .executeTakeFirst();
 
   if (!row) return null;

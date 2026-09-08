@@ -9,6 +9,7 @@ export interface CheckInPortContractSetup {
     logoUrl?: string | null;
   }): Promise<Business & { confirmedBy: string }>;
   seedExpiredPendingCheckin(input: { businessId: string; phone: string }): Promise<string>;
+  seedStaleConfirmedPendingCheckin(input: { businessId: string; phone: string }): Promise<string>;
 }
 
 // Generic over the fixture shape: this runs against both a plain vitest
@@ -213,7 +214,30 @@ export function runCheckInPortContractTests<Fixtures extends { realDb?: unknown 
 
       const status = await port.getCheckinStatus(pending.id);
 
-      expect(status).toMatchObject({ status: 'confirmed', customer: { phone: '+15551230014', points: 1 } });
+      expect(status).toMatchObject({ status: 'confirmed', customer: { points: 1 } });
+      // Public and unauthenticated — the raw phone must never round-trip
+      // back out, even though it's "the customer's own data."
+      if (status.status === 'confirmed') {
+        expect(status.customer).not.toHaveProperty('phone');
+      }
+    });
+
+    test('getCheckinStatus stops reporting a confirmed check-in once past the visibility window', async ({
+      realDb,
+    }) => {
+      const { port, seedBusiness, seedStaleConfirmedPendingCheckin } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      const pendingCheckinId = await seedStaleConfirmedPendingCheckin({
+        businessId: business.id,
+        phone: '+15551230018',
+      });
+
+      const status = await port.getCheckinStatus(pendingCheckinId);
+
+      // Same collapse as expired/never-existed: rows are never deleted, so
+      // without this an id would be a permanent, unauthenticated read of
+      // the customer's current points balance.
+      expect(status).toEqual({ status: 'not_found' });
     });
 
     test('getCheckinStatus reports expired for a stale, unconfirmed pending check-in', async ({ realDb }) => {
@@ -260,6 +284,150 @@ export function runCheckInPortContractTests<Fixtures extends { realDb?: unknown 
       const { port } = await createSetup({ realDb } as Fixtures);
 
       expect(await port.findCustomerBusinessId(crypto.randomUUID())).toBeNull();
+    });
+
+    test('hasConsented is false before any consent is recorded', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+
+      expect(await port.hasConsented({ businessId: business.id, phone: '+15551230019' })).toBe(false);
+    });
+
+    test('recordConsent makes hasConsented true', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+
+      await port.recordConsent({
+        businessId: business.id,
+        phone: '+15551230020',
+        language: 'Test consent language',
+        ip: '127.0.0.1',
+        userAgent: 'test-agent',
+      });
+
+      expect(await port.hasConsented({ businessId: business.id, phone: '+15551230020' })).toBe(true);
+    });
+
+    test('hasConsented is scoped per business', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const businessA = await seedBusiness({ slug: `contract-a-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      const businessB = await seedBusiness({ slug: `contract-b-${crypto.randomUUID()}`, rewardThreshold: 10 });
+
+      await port.recordConsent({
+        businessId: businessA.id,
+        phone: '+15551230021',
+        language: 'Test consent language',
+        ip: null,
+        userAgent: null,
+      });
+
+      expect(await port.hasConsented({ businessId: businessB.id, phone: '+15551230021' })).toBe(false);
+    });
+
+    test('listCustomers paginates and reports the total across all pages', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      await checkInNTimes(port, business, '+15551230022', 1);
+      await checkInNTimes(port, business, '+15551230023', 1);
+      await checkInNTimes(port, business, '+15551230024', 1);
+
+      const page1 = await port.listCustomers({ businessId: business.id, page: 1, pageSize: 2, sort: 'joined', dir: 'asc' });
+      const page2 = await port.listCustomers({ businessId: business.id, page: 2, pageSize: 2, sort: 'joined', dir: 'asc' });
+
+      expect(page1.items).toHaveLength(2);
+      expect(page2.items).toHaveLength(1);
+      expect(page1.total).toBe(3);
+      expect(page2.total).toBe(3);
+    });
+
+    test('listCustomers sorts by joined date, in either direction', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      const firstId = await checkInNTimes(port, business, '+15551230025', 1);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      const secondId = await checkInNTimes(port, business, '+15551230026', 1);
+
+      const asc = await port.listCustomers({ businessId: business.id, page: 1, pageSize: 10, sort: 'joined', dir: 'asc' });
+      const desc = await port.listCustomers({ businessId: business.id, page: 1, pageSize: 10, sort: 'joined', dir: 'desc' });
+
+      expect(asc.items.map((c) => c.id)).toEqual([firstId, secondId]);
+      expect(desc.items.map((c) => c.id)).toEqual([secondId, firstId]);
+    });
+
+    test('listCustomers sorts by points', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      const lowId = await checkInNTimes(port, business, '+15551230027', 1);
+      const highId = await checkInNTimes(port, business, '+15551230028', 3);
+
+      const asc = await port.listCustomers({ businessId: business.id, page: 1, pageSize: 10, sort: 'points', dir: 'asc' });
+
+      expect(asc.items.map((c) => c.id)).toEqual([lowId, highId]);
+    });
+
+    test('listCustomers is scoped per business', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const businessA = await seedBusiness({ slug: `contract-a-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      const businessB = await seedBusiness({ slug: `contract-b-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      await checkInNTimes(port, businessA, '+15551230029', 1);
+      await checkInNTimes(port, businessB, '+15551230030', 1);
+
+      const result = await port.listCustomers({ businessId: businessA.id, page: 1, pageSize: 10, sort: 'joined', dir: 'asc' });
+
+      expect(result.items).toHaveLength(1);
+      expect(result.total).toBe(1);
+    });
+
+    test('listCustomers reports sms consent per customer', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      await port.recordConsent({
+        businessId: business.id,
+        phone: '+15551230031',
+        language: 'Test consent language',
+        ip: null,
+        userAgent: null,
+      });
+      await checkInNTimes(port, business, '+15551230031', 1);
+      await checkInNTimes(port, business, '+15551230032', 1);
+
+      const result = await port.listCustomers({ businessId: business.id, page: 1, pageSize: 10, sort: 'joined', dir: 'asc' });
+
+      const consented = result.items.find((c) => c.phone === '+15551230031');
+      const notConsented = result.items.find((c) => c.phone === '+15551230032');
+      expect(consented?.hasSmsConsent).toBe(true);
+      expect(notConsented?.hasSmsConsent).toBe(false);
+    });
+
+    test('listAllCustomers returns every customer, unpaginated, scoped per business', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const businessA = await seedBusiness({ slug: `contract-a-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      const businessB = await seedBusiness({ slug: `contract-b-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      await checkInNTimes(port, businessA, '+15551230033', 1);
+      await checkInNTimes(port, businessA, '+15551230034', 1);
+      await checkInNTimes(port, businessB, '+15551230035', 1);
+
+      const all = await port.listAllCustomers(businessA.id);
+
+      expect(all).toHaveLength(2);
+      expect(all.map((c) => c.phone).sort()).toEqual(['+15551230033', '+15551230034']);
+    });
+
+    test('listAllCustomers reports sms consent per customer', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      await port.recordConsent({
+        businessId: business.id,
+        phone: '+15551230036',
+        language: 'Test consent language',
+        ip: null,
+        userAgent: null,
+      });
+      await checkInNTimes(port, business, '+15551230036', 1);
+
+      const all = await port.listAllCustomers(business.id);
+
+      expect(all[0]?.hasSmsConsent).toBe(true);
     });
   });
 }

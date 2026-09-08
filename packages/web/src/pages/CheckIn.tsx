@@ -53,9 +53,9 @@ export function CheckIn() {
     };
   }, [phase]);
 
-  async function handleSubmit(phone: string) {
+  async function handleSubmit(phone: string, smsConsent: boolean) {
     setPhase({ name: 'submitting' });
-    const pending = await createPendingCheckin(slug, phone);
+    const pending = await createPendingCheckin(slug, phone, smsConsent);
     setPhase({ name: 'waiting', pendingCheckinId: pending.id });
   }
 
@@ -125,7 +125,11 @@ export function CheckIn() {
               Earn <strong>{business!.rewardDescription}</strong> after {business!.rewardThreshold}{' '}
               visit{business!.rewardThreshold === 1 ? '' : 's'}.
             </p>
-            <CheckInForm onSubmit={handleSubmit} submitting={phase.name === 'submitting'} />
+            <CheckInForm
+              onSubmit={handleSubmit}
+              submitting={phase.name === 'submitting'}
+              businessName={business!.name}
+            />
           </>
         )}
 

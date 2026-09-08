@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { phoneSchema } from '@tallyup/shared';
+import { phoneSchema, smsConsentLanguageV1 } from '@tallyup/shared';
 import { confirmCheckin, listPendingCheckins } from '../services/check-in.js';
 import { redeem } from '../services/redemption.js';
 import { getCheckinStatus } from '../services/checkin-status.js';
@@ -13,7 +13,14 @@ import {
 } from './require-ownership.js';
 import type { AppDependencies } from '../app.js';
 
-const createPendingCheckinBodySchema = z.object({ phone: phoneSchema });
+const createPendingCheckinBodySchema = z.object({
+  phone: phoneSchema,
+  // Absent or false both mean "no consent" — only an explicit `true` records
+  // anything. The server renders the consent language itself from the
+  // business already loaded below; the client sends only this boolean, or
+  // the stored "evidence" would just be whatever text an attacker chose.
+  smsConsent: z.boolean().optional().default(false),
+});
 
 export async function checkInRoutes(app: FastifyInstance, deps: AppDependencies): Promise<void> {
   app.get('/businesses/:slug', async (request, reply) => {
@@ -48,6 +55,21 @@ export async function checkInRoutes(app: FastifyInstance, deps: AppDependencies)
         businessId: business.id,
         phone: parsedBody.data.phone,
       });
+
+      // Deliberately outside the fraud-gate transaction and independent of
+      // the pending check-in's own lifecycle — consent is recorded the
+      // instant it's given, by the customer, not up to 20 minutes later
+      // when staff confirm. An unticked box writes nothing and revokes
+      // nothing; a prior consent is never touched.
+      if (parsedBody.data.smsConsent) {
+        await deps.checkInPort.recordConsent({
+          businessId: business.id,
+          phone: parsedBody.data.phone,
+          language: smsConsentLanguageV1(business.name),
+          ip: request.ip,
+          userAgent: request.headers['user-agent'] ?? null,
+        });
+      }
 
       return reply.code(200).send(pendingCheckin);
     },

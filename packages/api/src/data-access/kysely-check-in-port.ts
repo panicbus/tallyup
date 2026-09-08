@@ -1,8 +1,15 @@
-import type { Kysely } from 'kysely';
+import type { ExpressionBuilder, Kysely } from 'kysely';
 import type { Database } from './types.js';
-import type { Business, CheckInPort, ConfirmCheckinResult, RedeemResult } from './check-in-port.js';
+import type { Business, CheckInPort, ConfirmCheckinResult, CustomerRosterEntry, RedeemResult } from './check-in-port.js';
 
 const PENDING_CHECKIN_TTL_MS = 20 * 60_000;
+// How long the customer-facing status poll keeps reporting `confirmed`
+// after the fact. Pending-checkin rows are never deleted, so without a
+// bound this id would be a permanent, unauthenticated read of the
+// customer's current points balance. 5 minutes comfortably covers the
+// 2-second poll interval and normal confirm-to-render latency, without
+// leaving the window open indefinitely.
+const CONFIRMED_STATUS_VISIBILITY_MS = 5 * 60_000;
 
 function toBusiness(row: {
   id: string;
@@ -17,6 +24,45 @@ function toBusiness(row: {
     rewardThreshold: row.reward_threshold,
     rewardDescription: row.reward_description,
     logoUrl: row.logo_url,
+  };
+}
+
+// Shared by listCustomers and listAllCustomers — an `exists` correlated
+// subquery rather than a join, so a customer with multiple consent rows
+// never fans out into duplicate roster rows.
+function rosterColumns(eb: ExpressionBuilder<Database, 'customers'>) {
+  return [
+    'id' as const,
+    'phone' as const,
+    'points' as const,
+    'created_at' as const,
+    eb
+      .exists(
+        eb
+          .selectFrom('sms_consents')
+          .select('id')
+          .whereRef('sms_consents.business_id', '=', 'customers.business_id')
+          .whereRef('sms_consents.phone', '=', 'customers.phone'),
+      )
+      .as('has_sms_consent'),
+  ];
+}
+
+function toRosterEntry(row: {
+  id: string;
+  phone: string;
+  points: number;
+  created_at: string | Date;
+  // Kysely types an `exists()` projection as SqlBool (boolean | number),
+  // since some dialects return 0/1 rather than a real boolean.
+  has_sms_consent: boolean | number;
+}): CustomerRosterEntry {
+  return {
+    id: row.id,
+    phone: row.phone,
+    points: row.points,
+    createdAt: new Date(row.created_at),
+    hasSmsConsent: Boolean(row.has_sms_consent),
   };
 }
 
@@ -180,6 +226,14 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
       }
 
       if (pending.confirmed_at !== null) {
+        const confirmedAgoMs = Date.now() - new Date(pending.confirmed_at).getTime();
+        if (confirmedAgoMs > CONFIRMED_STATUS_VISIBILITY_MS) {
+          // Same collapse confirmCheckin already makes for expired/already-
+          // confirmed: the caller has no reason to distinguish "too old to
+          // show" from "never existed."
+          return { status: 'not_found' };
+        }
+
         const business = await db
           .selectFrom('businesses')
           .select(['id', 'name', 'reward_threshold', 'reward_description', 'logo_url'])
@@ -188,7 +242,7 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
 
         const customer = await db
           .selectFrom('customers')
-          .select(['id', 'phone', 'points'])
+          .select(['id', 'points'])
           .where('business_id', '=', pending.business_id)
           .where('phone', '=', pending.phone)
           .executeTakeFirstOrThrow();
@@ -215,6 +269,67 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
     async findCustomerBusinessId(customerId) {
       const row = await db.selectFrom('customers').select('business_id').where('id', '=', customerId).executeTakeFirst();
       return row?.business_id ?? null;
+    },
+
+    async listCustomers({ businessId, page, pageSize, sort, dir }) {
+      // sort/dir are already-validated enums by the time they reach here
+      // (the route owns rejecting anything else) — this is a lookup table,
+      // not string interpolation, and Kysely's builder still typechecks the
+      // resulting column name against the `customers` table.
+      const column = sort === 'points' ? 'points' : 'created_at';
+      const offset = (page - 1) * pageSize;
+
+      const itemsQuery = db
+        .selectFrom('customers')
+        .select(rosterColumns)
+        .where('business_id', '=', businessId)
+        .orderBy(column, dir)
+        .limit(pageSize)
+        .offset(offset)
+        .execute();
+
+      const totalQuery = db
+        .selectFrom('customers')
+        .select(({ fn }) => fn.countAll().as('count'))
+        .where('business_id', '=', businessId)
+        .executeTakeFirstOrThrow();
+
+      const [rows, totalRow] = await Promise.all([itemsQuery, totalQuery]);
+
+      return {
+        items: rows.map(toRosterEntry),
+        total: Number(totalRow.count),
+        page,
+        pageSize,
+      };
+    },
+
+    async listAllCustomers(businessId) {
+      const rows = await db
+        .selectFrom('customers')
+        .select(rosterColumns)
+        .where('business_id', '=', businessId)
+        .orderBy('created_at', 'asc')
+        .execute();
+
+      return rows.map(toRosterEntry);
+    },
+
+    async recordConsent({ businessId, phone, language, ip, userAgent }) {
+      await db
+        .insertInto('sms_consents')
+        .values({ business_id: businessId, phone, language, ip, user_agent: userAgent })
+        .execute();
+    },
+
+    async hasConsented({ businessId, phone }) {
+      const row = await db
+        .selectFrom('sms_consents')
+        .select('id')
+        .where('business_id', '=', businessId)
+        .where('phone', '=', phone)
+        .executeTakeFirst();
+      return row !== undefined;
     },
   };
 }

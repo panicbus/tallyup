@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Inbox, Settings as SettingsIcon } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Inbox } from 'lucide-react';
 import { confirmCheckin, getMe, getPendingCheckins, redeem } from '../lib/api';
 import type { MeResponse, QueuedPendingCheckin } from '../lib/api';
 import { supabaseClient } from '../lib/supabase';
 import { PendingCheckinRow } from '../components/PendingCheckinRow';
 import { ResultCard, type ResultCardData } from '../components/ResultCard';
+import { StaffHeader } from '../components/StaffHeader';
 
 const POLL_INTERVAL_MS = 3000;
 const CLOCK_TICK_MS = 1000;
@@ -78,7 +79,7 @@ export function Dashboard() {
         ...current,
         {
           customerId: result.customer.id,
-          maskedPhone: result.customer.phone,
+          maskedPhone: result.customer.maskedPhone,
           points: result.customer.points,
           rewardThreshold: result.business.rewardThreshold,
           rewardDescription: result.business.rewardDescription,
@@ -130,61 +131,12 @@ export function Dashboard() {
   return (
     <div className="page">
       <div className="app-shell" style={{ width: '100%', maxWidth: 'var(--page-max-width)' }}>
-        <div
-          className="app-header"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 14,
-            padding: '16px 20px',
-            borderBottom: '1px solid var(--color-divider)',
-          }}
-        >
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              borderRadius: 8,
-              flex: 'none',
-              overflow: 'hidden',
-              background: 'var(--color-surface)',
-              border: me.business.logoUrl ? 'none' : '1px dashed var(--color-neutral-400)',
-            }}
-          >
-            {me.business.logoUrl && (
-              <img
-                src={me.business.logoUrl}
-                alt=""
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-              />
-            )}
-          </div>
-          <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700 }}>{me.business.name}</div>
-
-          <div className="nav-tabs">
-            <Link to={`/dashboard/${slug}`} className="nav-tab" aria-current="page">
-              Dashboard
-            </Link>
-            <Link to={`/dashboard/${slug}/settings`} className="nav-tab">
-              Settings
-            </Link>
-          </div>
-
-          <div className="text-muted staff-signed-in-mobile" style={{ marginLeft: 'auto', fontSize: 12 }}>
-            Staff · signed in
-          </div>
-          <Link
-            to={`/dashboard/${slug}/settings`}
-            aria-label="Settings"
-            className="settings-icon-mobile"
-            style={{ color: 'var(--color-neutral-600)', padding: 4, display: 'flex' }}
-          >
-            <SettingsIcon size={18} />
-          </Link>
-          <button type="button" onClick={handleSignOut} className="sign-out-desktop">
-            Sign out
-          </button>
-        </div>
+        <StaffHeader
+          slug={slug}
+          businessName={me.business.name}
+          logoUrl={me.business.logoUrl}
+          onSignOut={handleSignOut}
+        />
 
         <div className="page-content app-content" style={{ paddingTop: 24, gap: 12, maxWidth: 'none' }}>
         {error && (

@@ -28,9 +28,35 @@ export interface QueuedPendingCheckin {
   createdAt: string;
 }
 
+export interface RosterEntry {
+  id: string;
+  maskedPhone: string;
+  points: number;
+  joinedAt: string;
+  hasSmsConsent: boolean;
+}
+
+export interface RosterPage {
+  items: RosterEntry[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export type CustomerSortField = 'points' | 'joined';
+export type SortDirection = 'asc' | 'desc';
+
 interface CustomerSummary {
   id: string;
-  phone: string;
+  maskedPhone: string;
+  points: number;
+}
+
+// The status poll's confirmed shape is deliberately narrower — no phone at
+// all, and only reported for a short window after confirmation. See
+// CheckinStatusCustomer in the api's check-in-port.ts for why.
+interface CheckinStatusCustomer {
+  id: string;
   points: number;
 }
 
@@ -66,7 +92,12 @@ export type RedeemResponse =
 
 export type CheckinStatusResponse =
   | { status: 'pending'; expiresAt: string }
-  | { status: 'confirmed'; customer: CustomerSummary; business: BusinessSummary; eligibleForRedemption: boolean }
+  | {
+      status: 'confirmed';
+      customer: CheckinStatusCustomer;
+      business: BusinessSummary;
+      eligibleForRedemption: boolean;
+    }
   | { status: 'expired' }
   | { status: 'not_found' };
 
@@ -77,11 +108,15 @@ export async function getBusiness(slug: string): Promise<BusinessSummary | null>
   return response.json();
 }
 
-export async function createPendingCheckin(slug: string, phone: string): Promise<{ id: string; expiresAt: string }> {
+export async function createPendingCheckin(
+  slug: string,
+  phone: string,
+  smsConsent: boolean,
+): Promise<{ id: string; expiresAt: string }> {
   const response = await fetch(`${API_URL}/businesses/${slug}/pending-checkins`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ phone }),
+    body: JSON.stringify({ phone, smsConsent }),
   });
   if (!response.ok) throw new Error(`Failed to check in (${response.status})`);
   return response.json();
@@ -105,6 +140,29 @@ export async function getPendingCheckins(slug: string): Promise<QueuedPendingChe
   const response = await fetch(`${API_URL}/businesses/${slug}/pending-checkins`, { headers: await authHeaders() });
   if (!response.ok) throw new Error(`Failed to load queue (${response.status})`);
   return response.json();
+}
+
+export async function getCustomers(
+  slug: string,
+  params: { page: number; sort: CustomerSortField; dir: SortDirection },
+): Promise<RosterPage> {
+  const query = new URLSearchParams({
+    page: String(params.page),
+    sort: params.sort,
+    dir: params.dir,
+  });
+  const response = await fetch(`${API_URL}/businesses/${slug}/customers?${query}`, { headers: await authHeaders() });
+  if (!response.ok) throw new Error(`Failed to load customers (${response.status})`);
+  return response.json();
+}
+
+// Returns a Blob rather than a URL the browser can navigate to directly —
+// auth here is a Bearer header, which a plain <a href> can't send. The
+// caller turns this into a download via a temporary object URL.
+export async function exportCustomersCsv(slug: string): Promise<Blob> {
+  const response = await fetch(`${API_URL}/businesses/${slug}/customers/export`, { headers: await authHeaders() });
+  if (!response.ok) throw new Error(`Failed to export customers (${response.status})`);
+  return response.blob();
 }
 
 export async function confirmCheckin(pendingCheckinId: string): Promise<ConfirmCheckinResponse> {
@@ -157,5 +215,79 @@ export async function updateBusiness(
     body: JSON.stringify(input),
   });
   if (!response.ok) throw new Error(`Failed to update business (${response.status})`);
+  return response.json();
+}
+
+export type StaffRole = 'owner' | 'staff';
+
+export interface StaffRosterEntry {
+  id: string;
+  role: StaffRole;
+  deactivatedAt: string | null;
+  // Owner-only — absent entirely for a non-owner caller.
+  email?: string;
+}
+
+export interface PendingInvite {
+  id: string;
+  role: StaffRole;
+  createdAt: string;
+  expiresAt: string;
+}
+
+export interface StaffRosterResponse {
+  staff: StaffRosterEntry[];
+  // Owner-only — absent entirely for a non-owner caller.
+  pendingInvites?: PendingInvite[];
+}
+
+export async function getStaffRoster(slug: string): Promise<StaffRosterResponse> {
+  const response = await fetch(`${API_URL}/businesses/${slug}/staff`, { headers: await authHeaders() });
+  if (!response.ok) throw new Error(`Failed to load staff (${response.status})`);
+  return response.json();
+}
+
+export interface CreatedInvite {
+  id: string;
+  code: string;
+  expiresAt: string;
+}
+
+export async function createInvite(slug: string, role: StaffRole): Promise<CreatedInvite> {
+  const response = await fetch(`${API_URL}/businesses/${slug}/invites`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+    body: JSON.stringify({ role }),
+  });
+  if (!response.ok) throw new Error(`Failed to create invite (${response.status})`);
+  return response.json();
+}
+
+export type DeactivateStaffResponse = { outcome: 'deactivated' } | { outcome: 'last_owner' };
+
+export async function deactivateStaffMember(staffId: string): Promise<DeactivateStaffResponse> {
+  const response = await fetch(`${API_URL}/staff/${staffId}/deactivate`, {
+    method: 'POST',
+    headers: await authHeaders(),
+  });
+  if (response.status === 409) return { outcome: 'last_owner' };
+  if (!response.ok) throw new Error(`Failed to deactivate staff member (${response.status})`);
+  return response.json();
+}
+
+export type RedeemInviteResponse =
+  | { outcome: 'redeemed'; businessId: string; role: StaffRole }
+  | { outcome: 'invalid_code' }
+  | { outcome: 'already_staff' };
+
+export async function redeemInvite(code: string): Promise<RedeemInviteResponse> {
+  const response = await fetch(`${API_URL}/invites/redeem`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+    body: JSON.stringify({ code }),
+  });
+  if (response.status === 400) return { outcome: 'invalid_code' };
+  if (response.status === 409) return { outcome: 'already_staff' };
+  if (!response.ok) throw new Error(`Failed to redeem invite (${response.status})`);
   return response.json();
 }

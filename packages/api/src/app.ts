@@ -19,7 +19,12 @@ export interface AppDependencies {
 }
 
 export function buildApp(deps: AppDependencies, opts: FastifyServerOptions = {}): FastifyInstance {
-  const app = Fastify({ logger: true, ...opts });
+  // Render terminates the connection at its own edge, so without this,
+  // request.ip resolves to Render's proxy — not the caller — which would
+  // silently break both the public check-in route's per-IP rate limit and
+  // the SMS consent ledger's recorded IP. Harmless locally: with no
+  // X-Forwarded-For header, Fastify just falls back to the socket address.
+  const app = Fastify({ logger: true, trustProxy: true, ...opts });
   // web (Vite dev server / deployed Vercel origin) is always a different
   // origin than api, even in local dev — CORS_ORIGIN lets W7's deploy point
   // this at the real Vercel URL without touching code.

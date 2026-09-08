@@ -1,9 +1,16 @@
-import type { CheckInPort, ConfirmCheckinResult } from '../data-access/check-in-port.js';
+import type { CheckInPort, ConfirmCheckinResult, Customer } from '../data-access/check-in-port.js';
 import { isEligibleForRedemption } from './eligibility.js';
 import { maskPhone } from './phone-masking.js';
 
 export type ConfirmCheckinServiceResult =
-  | (Extract<ConfirmCheckinResult, { outcome: 'confirmed' }> & { eligibleForRedemption: boolean })
+  | (Omit<Extract<ConfirmCheckinResult, { outcome: 'confirmed' }>, 'customer'> & {
+      // Renamed from `phone`: the value is already masked by the time it
+      // gets here, and `phone` sitting on the wire next to a raw one
+      // elsewhere (the status poll) is exactly the confusable pair W0
+      // exists to eliminate.
+      customer: Omit<Customer, 'phone'> & { maskedPhone: string };
+      eligibleForRedemption: boolean;
+    })
   | { outcome: 'not_found' };
 
 /**
@@ -21,9 +28,10 @@ export async function confirmCheckin(
     return result;
   }
 
+  const { phone, ...customerRest } = result.customer;
   return {
     ...result,
-    customer: { ...result.customer, phone: maskPhone(result.customer.phone) },
+    customer: { ...customerRest, maskedPhone: maskPhone(phone) },
     eligibleForRedemption: isEligibleForRedemption(result.customer.points, result.business.rewardThreshold),
   };
 }

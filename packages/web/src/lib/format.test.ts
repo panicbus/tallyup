@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatWaitTime, isUrgentWait } from './format';
+import { formatJoinedDate, formatWaitTime, isUrgentWait } from './format';
 
 describe('formatWaitTime', () => {
   it('formats under a minute as 0:SS waiting', () => {
@@ -32,5 +32,15 @@ describe('isUrgentWait', () => {
     const now = Date.parse('2026-01-01T00:01:31Z');
     const createdAt = '2026-01-01T00:00:00Z';
     expect(isUrgentWait(createdAt, now)).toBe(true);
+  });
+});
+
+describe('formatJoinedDate', () => {
+  it('formats an ISO timestamp as a short, human date', () => {
+    expect(formatJoinedDate('2026-03-05T00:00:00Z')).toBe('Mar 5, 2026');
+  });
+
+  it('is anchored to UTC, not the viewer\'s timezone, so a near-midnight time never shifts calendar day', () => {
+    expect(formatJoinedDate('2026-03-05T23:30:00Z')).toBe('Mar 5, 2026');
   });
 });
