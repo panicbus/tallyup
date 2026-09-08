@@ -15,8 +15,14 @@ dist/
 # Editor / OS
 .vscode/
 .idea/
-.claude/
 .DS_Store
+
+# Claude Code: ignore everything under .claude/ except the shared, checked-in
+# team config (settings.json + hooks). Personal overrides live in the
+# still-ignored settings.local.json.
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
 
 # Playwright MCP browser-testing artifacts (screenshots, snapshots, console logs)
 .playwright-mcp/
