@@ -5,6 +5,7 @@ import { getMe, updateBusiness } from '../lib/api';
 import type { MeResponse } from '../lib/api';
 import { supabaseClient } from '../lib/supabase';
 import { SettingsForm, type SettingsFormValues } from '../components/SettingsForm';
+import { CheckInQrCode } from '../components/CheckInQrCode';
 
 type Mode = 'view' | 'edit';
 
@@ -135,10 +136,10 @@ export function Settings() {
                   )}
                 </div>
                 <div>
-                  <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>Check-in URL</div>
-                  <div style={{ fontSize: 15, fontFamily: 'ui-monospace, monospace', color: 'var(--color-neutral-500)' }}>
-                    {window.location.host}/checkin/{me.business.slug}
+                  <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 8 }}>
+                    Check-in QR code
                   </div>
+                  <CheckInQrCode slug={me.business.slug} />
                 </div>
               </div>
               {me.role === 'owner' && (
