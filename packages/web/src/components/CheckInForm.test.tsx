@@ -11,7 +11,7 @@ describe('CheckInForm', () => {
     await userEvent.type(screen.getByLabelText(/phone/i), '555-123-4567');
     await userEvent.click(screen.getByRole('button', { name: /check in/i }));
 
-    expect(onSubmit).toHaveBeenCalledWith('555-123-4567', false);
+    expect(onSubmit).toHaveBeenCalledWith('(555) 123-4567', false);
   });
 
   it('passes true for sms consent only when the box is checked', async () => {
@@ -22,7 +22,16 @@ describe('CheckInForm', () => {
     await userEvent.click(screen.getByRole('checkbox'));
     await userEvent.click(screen.getByRole('button', { name: /check in/i }));
 
-    expect(onSubmit).toHaveBeenCalledWith('555-123-4567', true);
+    expect(onSubmit).toHaveBeenCalledWith('(555) 123-4567', true);
+  });
+
+  it('masks the number as (xxx) xxx-xxxx while it is typed', async () => {
+    render(<CheckInForm onSubmit={() => {}} submitting={false} businessName="Test Shop" />);
+
+    const input = screen.getByLabelText(/phone/i) as HTMLInputElement;
+    await userEvent.type(input, '5551234567');
+
+    expect(input.value).toBe('(555) 123-4567');
   });
 
   it("names the business in the consent checkbox label, not TallyUp", () => {

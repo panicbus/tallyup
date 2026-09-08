@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ChevronDown, Pencil, Users } from 'lucide-react';
+import { Pencil, QrCode, Users, X } from 'lucide-react';
 import { getMe, updateBusiness } from '../lib/api';
 import type { MeResponse } from '../lib/api';
 import { supabaseClient } from '../lib/supabase';
@@ -17,6 +17,7 @@ export function Settings() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | undefined>();
   const [saved, setSaved] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
 
   useEffect(() => {
     getMe().then((result) => {
@@ -31,6 +32,23 @@ export function Settings() {
       setMe(result);
     });
   }, [slug, navigate]);
+
+  // The "Saved" confirmation is transient — clear it after 5s (or if the
+  // component unmounts / another save starts first).
+  useEffect(() => {
+    if (!saved) return;
+    const timer = setTimeout(() => setSaved(false), 5000);
+    return () => clearTimeout(timer);
+  }, [saved]);
+
+  useEffect(() => {
+    if (!qrOpen) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') setQrOpen(false);
+    }
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [qrOpen]);
 
   async function handleSubmit(values: SettingsFormValues) {
     setSubmitting(true);
@@ -135,14 +153,19 @@ export function Settings() {
                     <div style={{ fontSize: 15, color: 'var(--color-neutral-500)' }}>Not set</div>
                   )}
                 </div>
-                <details className="qr-disclosure">
-                  <summary>
-                    <ChevronDown size={14} /> Show printable QR code
-                  </summary>
-                  <div style={{ marginTop: 16 }}>
-                    <CheckInQrCode slug={me.business.slug} />
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 8 }}>
+                    Check-in QR code
                   </div>
-                </details>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                    onClick={() => setQrOpen(true)}
+                  >
+                    <QrCode size={14} /> Show printable QR code
+                  </button>
+                </div>
               </div>
               {me.role === 'owner' && (
                 <Link
@@ -173,6 +196,23 @@ export function Settings() {
           )}
         </div>
       </div>
+
+      {qrOpen && (
+        <div
+          className="modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Check-in QR code"
+          onClick={() => setQrOpen(false)}
+        >
+          <div className="modal-panel" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="modal-close" aria-label="Close" onClick={() => setQrOpen(false)}>
+              <X size={18} />
+            </button>
+            <CheckInQrCode slug={me.business.slug} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }

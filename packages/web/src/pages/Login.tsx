@@ -42,7 +42,13 @@ export function Login() {
           >
             <X size={20} />
           </Link>
-          <img src="/logo.svg" alt="" width={48} height={48} style={{ marginBottom: 4 }} />
+          <img
+            src="/logo.svg"
+            alt=""
+            width={72}
+            height={72}
+            style={{ display: 'block', margin: '4px auto 8px' }}
+          />
           <h2 style={{ margin: 0 }}>Sign in</h2>
           <LoginForm onSubmit={handleSubmit} submitting={submitting} error={error} />
           <Link to="/signup" style={{ fontSize: 13, textAlign: 'center' }}>

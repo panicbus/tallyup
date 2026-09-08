@@ -42,7 +42,13 @@ export function Signup() {
           >
             <X size={20} />
           </Link>
-          <img src="/logo.svg" alt="" width={48} height={48} style={{ marginBottom: 4 }} />
+          <img
+            src="/logo.svg"
+            alt=""
+            width={72}
+            height={72}
+            style={{ display: 'block', margin: '4px auto 8px' }}
+          />
           <div>
             <h2 style={{ margin: '0 0 4px' }}>Create your account</h2>
             <p className="text-muted" style={{ margin: 0 }}>

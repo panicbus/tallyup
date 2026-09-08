@@ -53,6 +53,21 @@ export function CheckIn() {
     };
   }, [phase]);
 
+  // Re-scanning the QR on a phone that still has this tab open doesn't
+  // remount us — the route is unchanged — so a finished check-in would
+  // just sit there showing the punch card. When the page comes back to
+  // the foreground after a confirmed punch, drop back to the form so the
+  // next number can be entered without a manual refresh. A reward-ready
+  // card is left up: the customer still needs to show it to staff.
+  useEffect(() => {
+    if (phase.name !== 'confirmed' || phase.eligibleForRedemption) return;
+    function onVisibility() {
+      if (document.visibilityState === 'visible') setPhase({ name: 'form' });
+    }
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => document.removeEventListener('visibilitychange', onVisibility);
+  }, [phase]);
+
   async function handleSubmit(phone: string, smsConsent: boolean) {
     setPhase({ name: 'submitting' });
     const pending = await createPendingCheckin(slug, phone, smsConsent);
@@ -159,7 +174,16 @@ export function CheckIn() {
         )}
 
         {phase.name === 'confirmed' && (
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center' }}>
+          <div
+            style={{
+              flex: 1,
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: 20,
+            }}
+          >
             <CustomerCard
               businessName={business!.name}
               points={phase.points}
@@ -168,6 +192,9 @@ export function CheckIn() {
               eligibleForRedemption={phase.eligibleForRedemption}
               logoUrl={business!.logoUrl}
             />
+            <button type="button" className="btn btn-secondary" onClick={() => setPhase({ name: 'form' })}>
+              Check in again
+            </button>
           </div>
         )}
 

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { phoneSchema, smsConsentLanguageV1 } from '@tallyup/shared';
+import { formatUsPhoneInput } from '../lib/format';
 
 interface CheckInFormProps {
   onSubmit: (phone: string, smsConsent: boolean) => void;
@@ -36,7 +37,7 @@ export function CheckInForm({ onSubmit, submitting, businessName }: CheckInFormP
           autoComplete="tel"
           placeholder="(555) 555-1234"
           value={phone}
-          onChange={(e) => setPhone(e.target.value)}
+          onChange={(e) => setPhone(formatUsPhoneInput(e.target.value))}
         />
         {error && (
           <p role="alert" style={{ color: 'var(--color-accent-700)', fontSize: 13, margin: '8px 0 0' }}>

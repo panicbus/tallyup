@@ -12,6 +12,26 @@ export function isUrgentWait(createdAt: string, now: number = Date.now()): boole
   return now - new Date(createdAt).getTime() > URGENT_WAIT_MS;
 }
 
+/**
+ * Progressively formats phone input as a US number, `(555) 123-4567`,
+ * while it's being typed. Strips non-digits, drops a leading country-code
+ * `1`, caps at 10 digits, and only adds punctuation for the digits
+ * present so far. `normalizePhone` (shared) still does the real parsing on
+ * submit — this is display only.
+ */
+export function formatUsPhoneInput(raw: string): string {
+  let digits = raw.replace(/\D/g, '');
+  if (digits.length === 11 && digits.startsWith('1')) {
+    digits = digits.slice(1);
+  }
+  digits = digits.slice(0, 10);
+
+  if (digits.length === 0) return '';
+  if (digits.length < 4) return `(${digits}`;
+  if (digits.length < 7) return `(${digits.slice(0, 3)}) ${digits.slice(3)}`;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 /** Fixed locale and UTC, not the viewer's — deterministic across browsers,
  * and anchored to the same timestamp the database stored rather than
  * shifting by whatever timezone the viewer happens to be in. No timezone

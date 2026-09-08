@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatJoinedDate, formatWaitTime, isUrgentWait } from './format';
+import { formatJoinedDate, formatUsPhoneInput, formatWaitTime, isUrgentWait } from './format';
 
 describe('formatWaitTime', () => {
   it('formats under a minute as 0:SS waiting', () => {
@@ -32,6 +32,34 @@ describe('isUrgentWait', () => {
     const now = Date.parse('2026-01-01T00:01:31Z');
     const createdAt = '2026-01-01T00:00:00Z';
     expect(isUrgentWait(createdAt, now)).toBe(true);
+  });
+});
+
+describe('formatUsPhoneInput', () => {
+  it('is empty until the first digit', () => {
+    expect(formatUsPhoneInput('')).toBe('');
+    expect(formatUsPhoneInput('(')).toBe('');
+  });
+
+  it('wraps the area code in parens as it is typed', () => {
+    expect(formatUsPhoneInput('5')).toBe('(5');
+    expect(formatUsPhoneInput('555')).toBe('(555');
+    expect(formatUsPhoneInput('5551')).toBe('(555) 1');
+  });
+
+  it('adds the dash once the exchange is complete', () => {
+    expect(formatUsPhoneInput('555123')).toBe('(555) 123');
+    expect(formatUsPhoneInput('5551234567')).toBe('(555) 123-4567');
+  });
+
+  it('reformats already-punctuated input', () => {
+    expect(formatUsPhoneInput('555-123-4567')).toBe('(555) 123-4567');
+    expect(formatUsPhoneInput('(555) 123-4567')).toBe('(555) 123-4567');
+  });
+
+  it('drops a leading country-code 1 and caps at 10 digits', () => {
+    expect(formatUsPhoneInput('15551234567')).toBe('(555) 123-4567');
+    expect(formatUsPhoneInput('555123456789')).toBe('(555) 123-4567');
   });
 });
 
