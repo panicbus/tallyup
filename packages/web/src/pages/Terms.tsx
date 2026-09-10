@@ -3,11 +3,7 @@ import { LegalPage } from '../components/LegalPage';
 export function Terms() {
   return (
     <LegalPage title="Terms of Service" updated="September 2026">
-      <p className="text-muted" style={{ margin: 0, fontSize: 13 }}>
-        A plain-language summary for the pilot. It will be replaced by a lawyer-reviewed version before general
-        release.
-      </p>
-
+      
       <h2>What TallyUp is</h2>
       <p>
         TallyUp is a digital punch card. Your customers scan a QR code and enter their phone number; your staff

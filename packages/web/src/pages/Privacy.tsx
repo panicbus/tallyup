@@ -3,10 +3,6 @@ import { LegalPage } from '../components/LegalPage';
 export function Privacy() {
   return (
     <LegalPage title="Privacy Policy" updated="September 2026">
-      <p className="text-muted" style={{ margin: 0, fontSize: 13 }}>
-        A plain-language summary for the pilot. It will be replaced by a lawyer-reviewed version before general
-        release.
-      </p>
 
       <h2>What we collect</h2>
       <ul>
