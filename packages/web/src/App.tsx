@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Analytics } from '@vercel/analytics/react';
 import { Landing } from './pages/Landing';
 import { Dashboard } from './pages/Dashboard';
 import { CheckIn } from './pages/CheckIn';
@@ -33,6 +34,7 @@ export default function App() {
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
       </Routes>
+      <Analytics />
     </BrowserRouter>
   );
 }
