@@ -34,7 +34,10 @@ export function AboutModal({ onClose }: AboutModalProps) {
           <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>
             A customer scans your shop's QR code at the counter to check in, and a staff member
             confirms it on the dashboard. After a set number of visits, they've earned the reward
-            you chose and you deliver it.
+            you chose, which you then deliver.
+          </p>
+          <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>
+            Everyone feels the love. ❤️
           </p>
 
           <div
