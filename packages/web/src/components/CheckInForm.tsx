@@ -6,22 +6,14 @@ interface CheckInFormProps {
   onSubmit: (phone: string, smsConsent: boolean) => void;
   submitting: boolean;
   businessName: string;
-  /** Pre-fill, e.g. when a customer taps "Check in again". */
-  initialPhone?: string;
-  /** True once a number is known to have SMS consent on file — the consent
+  /** True once a number is known to have SMS consent on file. The consent
    * checkbox is then hidden, since re-asking would just append a duplicate
    * ledger row. Re-evaluated as the field is edited. */
   isPhoneKnownConsented?: (phone: string) => boolean;
 }
 
-export function CheckInForm({
-  onSubmit,
-  submitting,
-  businessName,
-  initialPhone = '',
-  isPhoneKnownConsented,
-}: CheckInFormProps) {
-  const [phone, setPhone] = useState(initialPhone);
+export function CheckInForm({ onSubmit, submitting, businessName, isPhoneKnownConsented }: CheckInFormProps) {
+  const [phone, setPhone] = useState('');
   const [smsConsent, setSmsConsent] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

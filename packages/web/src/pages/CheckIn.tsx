@@ -10,7 +10,7 @@ import { CustomerCard } from '../components/CustomerCard';
 const STATUS_POLL_INTERVAL_MS = 2000;
 
 // Which phone numbers (E.164) this device has seen opt into SMS at this
-// shop — so a returning customer isn't shown the consent checkbox again.
+// shop, so a returning customer isn't shown the consent checkbox again.
 // Per-device convenience only; the server's ledger is the real record.
 function consentStorageKey(slug: string): string {
   return `tallyup:sms-consent:${slug}`;
@@ -27,7 +27,7 @@ function persistConsentedPhones(slug: string, phones: Set<string>): void {
   try {
     localStorage.setItem(consentStorageKey(slug), JSON.stringify([...phones]));
   } catch {
-    // Private mode / storage disabled — the in-memory Set still works for
+    // Private mode / storage disabled. The in-memory Set still works for
     // this session, which is the common case anyway.
   }
 }
@@ -46,7 +46,6 @@ export function CheckIn() {
   const [business, setBusiness] = useState<BusinessSummary | null>(null);
   const [phase, setPhase] = useState<Phase>({ name: 'loading' });
   const [consentedPhones, setConsentedPhones] = useState<Set<string>>(() => loadConsentedPhones(slug));
-  const [lastPhone, setLastPhone] = useState('');
 
   useEffect(() => {
     getBusiness(slug).then((found) => {
@@ -79,29 +78,7 @@ export function CheckIn() {
     };
   }, [phase]);
 
-  // Re-scanning the QR on a phone that still has this tab open doesn't
-  // remount us — the route is unchanged — so a finished check-in would
-  // just sit there showing the punch card. When the page comes back to
-  // the foreground after a confirmed punch, drop back to the form so the
-  // next number can be entered without a manual refresh. A reward-ready
-  // card is left up: the customer still needs to show it to staff.
-  useEffect(() => {
-    if (phase.name !== 'confirmed' || phase.eligibleForRedemption) return;
-    function onVisibility() {
-      if (document.visibilityState === 'visible') {
-        // Could be a different customer re-scanning, so don't carry the
-        // last number into the field — but a known-consented number will
-        // still hide the checkbox once it's typed.
-        setLastPhone('');
-        setPhase({ name: 'form' });
-      }
-    }
-    document.addEventListener('visibilitychange', onVisibility);
-    return () => document.removeEventListener('visibilitychange', onVisibility);
-  }, [phase]);
-
   async function handleSubmit(phone: string, smsConsent: boolean) {
-    setLastPhone(phone);
     setPhase({ name: 'submitting' });
     const pending = await createPendingCheckin(slug, phone, smsConsent);
 
@@ -194,7 +171,6 @@ export function CheckIn() {
               onSubmit={handleSubmit}
               submitting={phase.name === 'submitting'}
               businessName={business!.name}
-              initialPhone={lastPhone}
               isPhoneKnownConsented={isPhoneKnownConsented}
             />
           </>
@@ -233,7 +209,7 @@ export function CheckIn() {
               flexDirection: 'column',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: 20,
+              gap: 16,
             }}
           >
             <CustomerCard
@@ -244,9 +220,9 @@ export function CheckIn() {
               eligibleForRedemption={phase.eligibleForRedemption}
               logoUrl={business!.logoUrl}
             />
-            <button type="button" className="btn btn-secondary" onClick={() => setPhase({ name: 'form' })}>
-              Check in again
-            </button>
+            <p className="text-muted" style={{ margin: 0, fontSize: 13, textAlign: 'center' }}>
+              Scan the code again on your next visit.
+            </p>
           </div>
         )}
 
@@ -275,18 +251,10 @@ export function CheckIn() {
             >
               <Clock size={24} color="var(--color-accent-700)" />
             </div>
-            <h2 style={{ fontSize: 20, margin: 0 }}>That check-in expired</h2>
-            <p className="text-muted" style={{ margin: 0, fontSize: 13, maxWidth: 220 }}>
-              Nobody confirmed within 20 minutes. No points were lost.
+            <h2 style={{ fontSize: 20, margin: 0 }}>Check-in expired</h2>
+            <p className="text-muted" style={{ margin: 0, fontSize: 13, maxWidth: 240 }}>
+              Nobody confirmed within 20 minutes. No points were lost. Scan the code again to check in.
             </p>
-            <button
-              type="button"
-              className="btn btn-primary"
-              style={{ marginTop: 4 }}
-              onClick={() => setPhase({ name: 'form' })}
-            >
-              Try again
-            </button>
           </div>
         )}
       </div>

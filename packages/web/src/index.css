@@ -91,7 +91,6 @@ h5 { font-size: 16px; }
 h6 { font-size: 13px; letter-spacing: 0.08em; text-transform: uppercase; }
 p { margin: 0 0 var(--space-3); }
 a { color: var(--color-accent-700); text-underline-offset: 3px; }
-a:hover { color: var(--color-accent); }
 /* Kill the iOS Safari link-preview callout bubble (the "ghost" that eases in
    and lingers through a navigation) and the grey tap-flash. Both are no-ops
    off touch WebKit. */
@@ -119,13 +118,10 @@ img { display: block; max-width: 100%; }
 .btn svg { display: block; }
 .btn:disabled { opacity: 0.45; cursor: not-allowed; }
 .btn-primary { background: var(--color-accent); color: var(--color-bg); border-color: var(--color-accent); }
-.btn-primary:hover { background: var(--color-bg); color: var(--color-accent); }
 .btn-primary:active { background: var(--color-accent-100); color: var(--color-accent-700); }
 .btn-secondary { border-color: var(--color-divider); }
-.btn-secondary:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
 .btn-secondary:active { background: color-mix(in srgb, var(--color-text) 14%, transparent); }
 .btn-ghost { color: var(--color-accent-700); padding-inline: var(--space-1); }
-.btn-ghost:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
 .btn-ghost:active { background: color-mix(in srgb, var(--color-accent) 18%, transparent); }
 .btn-icon { width: 36px; height: 36px; padding: 0; border-radius: 50%; }
 .btn-block { width: 100%; margin-top: var(--space-2); }
@@ -134,16 +130,17 @@ img { display: block; max-width: 100%; }
 .field { display: flex; flex-direction: column; gap: 0; }
 .field + .field { margin-top: var(--space-4); }
 .field > label {
-  display: block; font-size: 12px; margin-bottom: 5px;
+  display: block; font-size: 13px; margin-bottom: 6px;
   color: color-mix(in srgb, var(--color-text) 70%, transparent);
 }
 .input {
-  width: 100%; min-height: 36px; padding: 6px 14px; font: inherit;
-  font-size: 14px; color: var(--color-text); caret-color: var(--color-accent);
+  /* 16px min stops iOS Safari from zooming the page on focus; also just a
+     more legible field. */
+  width: 100%; min-height: 44px; padding: 11px 14px; font: inherit;
+  font-size: 16px; color: var(--color-text); caret-color: var(--color-accent);
   background: #fff;
   border: 1px solid var(--color-divider); border-radius: 999px;
 }
-.input:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
 .input:focus-visible { border-color: var(--color-accent); outline-offset: 0; }
 .input:disabled { opacity: 0.6; cursor: not-allowed; }
 
@@ -177,7 +174,6 @@ input[type='number']::-webkit-outer-spin-button {
   cursor: pointer;
   border-radius: 50%;
 }
-.password-toggle:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
 
 /* — saved confirmation pill — */
 .saved-pill {
@@ -216,7 +212,6 @@ input[type='number']::-webkit-outer-spin-button {
   padding: var(--space-2);
   border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
 }
-.table tbody tr:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
 
 /* — roster layout: a card list below the desktop breakpoint, matching every
    other mobile list in the app (no horizontal-scroll pattern exists below
@@ -284,7 +279,6 @@ input[type='number']::-webkit-outer-spin-button {
   border-radius: 999px;
   cursor: pointer;
 }
-.dropdown-trigger:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
 .dropdown-trigger svg { flex: none; opacity: 0.55; transition: transform 0.15s ease; }
 .dropdown[data-open='true'] .dropdown-trigger svg { transform: rotate(180deg); }
 .dropdown-menu {
@@ -316,7 +310,6 @@ input[type='number']::-webkit-outer-spin-button {
   cursor: pointer;
   white-space: nowrap;
 }
-.dropdown-menu button:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
 .dropdown-menu button[aria-selected='true'] { font-weight: 700; }
 
 /* — prose: the Terms / Privacy body column — */
@@ -389,6 +382,21 @@ input[type='number']::-webkit-outer-spin-button {
   display: flex;
   flex-direction: column;
   gap: 16px;
+}
+
+
+/* Hover states only where a real pointer exists. On touch, a tap would
+   otherwise leave the hover style stuck until the next scroll. */
+@media (hover: hover) {
+  a:hover { color: var(--color-accent); }
+  .btn-primary:hover { background: var(--color-bg); color: var(--color-accent); }
+  .btn-secondary:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+  .btn-ghost:hover { background: color-mix(in srgb, var(--color-accent) 10%, transparent); }
+  .input:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
+  .password-toggle:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+  .table tbody tr:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
+  .dropdown-trigger:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
+  .dropdown-menu button:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
 }
 
 @media (min-width: 900px) {

@@ -12,18 +12,15 @@ import { CheckInQrCode } from '../components/CheckInQrCode';
 
 const POLL_INTERVAL_MS = 3000;
 const CLOCK_TICK_MS = 1000;
-const RESULT_CARD_TTL_MS = 30_000;
-
-interface TimedResult extends ResultCardData {
-  expiresAt: number;
-}
 
 export function Dashboard() {
   const { slug } = useParams() as { slug: string };
   const navigate = useNavigate();
   const [me, setMe] = useState<MeResponse | null>(null);
   const [queue, setQueue] = useState<QueuedPendingCheckin[]>([]);
-  const [results, setResults] = useState<TimedResult[]>([]);
+  // Confirmed check-ins stay on screen until staff clears them (no timed
+  // removal). Newest first.
+  const [results, setResults] = useState<ResultCardData[]>([]);
   const [stats, setStats] = useState<BusinessStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -71,9 +68,6 @@ export function Dashboard() {
       } catch {
         if (!cancelled) setError('Could not load the check-in queue.');
       }
-      if (!cancelled) {
-        setResults((current) => current.filter((r) => r.expiresAt > Date.now()));
-      }
     }
 
     poll();
@@ -91,16 +85,16 @@ export function Dashboard() {
 
     if (result.outcome === 'confirmed') {
       setResults((current) => [
-        ...current,
         {
+          id: crypto.randomUUID(),
           customerId: result.customer.id,
           maskedPhone: result.customer.maskedPhone,
           points: result.customer.points,
           rewardThreshold: result.business.rewardThreshold,
           rewardDescription: result.business.rewardDescription,
           eligibleForRedemption: result.eligibleForRedemption,
-          expiresAt: Date.now() + RESULT_CARD_TTL_MS,
         },
+        ...current,
       ]);
     }
   }
@@ -117,7 +111,7 @@ export function Dashboard() {
                 ...r,
                 points: result.customer.points,
                 eligibleForRedemption: result.eligibleForRedemption,
-                expiresAt: Date.now() + RESULT_CARD_TTL_MS,
+                redeemed: true,
               }
             : r,
         ),
@@ -125,8 +119,8 @@ export function Dashboard() {
     }
   }
 
-  function handleDismiss(customerId: string) {
-    setResults((current) => current.filter((r) => r.customerId !== customerId));
+  function handleDismiss(id: string) {
+    setResults((current) => current.filter((r) => r.id !== id));
   }
 
   async function handleSignOut() {
@@ -171,17 +165,41 @@ export function Dashboard() {
         )}
 
         {results.length > 0 && (
-          <ul style={{ margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {results.map((result) => (
-              <ResultCard
-                key={result.customerId}
-                result={result}
-                onRedeem={handleRedeem}
-                onDismiss={handleDismiss}
-                redeemDisabled={false}
-              />
-            ))}
-          </ul>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h3 style={{ margin: 0 }}>Check-in results</h3>
+              <span className="tag tag-neutral">{results.length}</span>
+              <button
+                type="button"
+                className="btn btn-secondary"
+                style={{ marginLeft: 'auto', fontSize: 13 }}
+                onClick={() => setResults([])}
+              >
+                Clear check-in results
+              </button>
+            </div>
+            <ul
+              style={{
+                margin: 0,
+                padding: 0,
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12,
+                maxHeight: 'min(52vh, 520px)',
+                overflowY: 'auto',
+              }}
+            >
+              {results.map((result) => (
+                <ResultCard
+                  key={result.id}
+                  result={result}
+                  onRedeem={handleRedeem}
+                  onDismiss={handleDismiss}
+                  redeemDisabled={false}
+                />
+              ))}
+            </ul>
+          </div>
         )}
 
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>

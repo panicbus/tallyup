@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { ResultCard } from './ResultCard';
 
 const eligible = {
+  id: 'result-1',
   customerId: 'customer-1',
   maskedPhone: '•••-•••-4567',
   points: 10,
@@ -43,12 +44,26 @@ describe('ResultCard', () => {
     expect(onRedeem).toHaveBeenCalledWith('customer-1');
   });
 
-  it('calls onDismiss with the customer id when dismissed', async () => {
+  it('calls onDismiss with the row id when dismissed', async () => {
     const onDismiss = vi.fn();
     render(<ResultCard result={eligible} onRedeem={() => {}} onDismiss={onDismiss} redeemDisabled={false} />);
 
     await userEvent.click(screen.getByRole('button', { name: /dismiss/i }));
 
-    expect(onDismiss).toHaveBeenCalledWith('customer-1');
+    expect(onDismiss).toHaveBeenCalledWith('result-1');
+  });
+
+  it('shows the redeemed note instead of the Redeem button once redeemed', () => {
+    render(
+      <ResultCard
+        result={{ ...eligible, redeemed: true }}
+        onRedeem={() => {}}
+        onDismiss={() => {}}
+        redeemDisabled={false}
+      />,
+    );
+
+    expect(screen.getByText(/punch threshold reached, reward redeemed/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /redeem/i })).toBeNull();
   });
 });

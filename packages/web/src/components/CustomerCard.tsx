@@ -28,8 +28,11 @@ export function CustomerCard({
         textAlign: 'center',
       }}
     >
-      <div className={eligibleForRedemption ? 'tag tag-accent' : 'tag tag-accent-2'} style={{ fontSize: 14, padding: '7px 16px' }}>
-        {eligibleForRedemption ? <strong>Reward ready!</strong> : 'Your punch card'}
+      <div
+        className={eligibleForRedemption ? 'tag tag-accent' : 'tag tag-accent-2'}
+        style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-0.01em', padding: '9px 20px' }}
+      >
+        {eligibleForRedemption ? 'Reward ready!' : 'Your punch card'}
       </div>
 
       <div style={{ position: 'relative', width: '100%', maxWidth: 320 }}>

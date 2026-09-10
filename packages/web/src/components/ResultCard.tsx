@@ -1,18 +1,22 @@
 import { CheckCircle, Gift } from 'lucide-react';
 
 export interface ResultCardData {
+  /** Unique per confirm event, so repeat check-ins from one customer stack
+   * as separate rows rather than colliding on a React key. */
+  id: string;
   customerId: string;
   maskedPhone: string;
   points: number;
   rewardThreshold: number;
   rewardDescription: string;
   eligibleForRedemption: boolean;
+  redeemed?: boolean;
 }
 
 interface ResultCardProps {
   result: ResultCardData;
   onRedeem: (customerId: string) => void;
-  onDismiss: (customerId: string) => void;
+  onDismiss: (id: string) => void;
   redeemDisabled: boolean;
 }
 
@@ -39,7 +43,7 @@ export function ResultCard({ result, onRedeem, onDismiss, redeemDisabled }: Resu
         <button
           type="button"
           aria-label="Dismiss"
-          onClick={() => onDismiss(result.customerId)}
+          onClick={() => onDismiss(result.id)}
           style={{
             background: 'none',
             border: 'none',
@@ -53,16 +57,23 @@ export function ResultCard({ result, onRedeem, onDismiss, redeemDisabled }: Resu
           ×
         </button>
       </div>
-      {result.eligibleForRedemption && (
-        <button
-          type="button"
-          className="btn btn-primary btn-block"
-          style={{ fontSize: 16 }}
-          onClick={() => onRedeem(result.customerId)}
-          disabled={redeemDisabled}
-        >
-          <Gift size={16} /> Redeem: {result.rewardDescription}
-        </button>
+
+      {result.redeemed ? (
+        <p style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--color-accent-700)' }}>
+          Punch threshold reached, reward redeemed
+        </p>
+      ) : (
+        result.eligibleForRedemption && (
+          <button
+            type="button"
+            className="btn btn-primary btn-block"
+            style={{ fontSize: 16 }}
+            onClick={() => onRedeem(result.customerId)}
+            disabled={redeemDisabled}
+          >
+            <Gift size={16} /> Redeem: {result.rewardDescription}
+          </button>
+        )
       )}
     </li>
   );

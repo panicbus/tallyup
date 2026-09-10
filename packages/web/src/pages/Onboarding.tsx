@@ -80,7 +80,12 @@ export function Onboarding() {
     return (
       <div className="page">
         <div className="page-content" style={{ alignItems: 'center', textAlign: 'center' }}>
-          <div className="tag tag-accent-2">You're ready</div>
+          <div
+            className="tag tag-accent-2"
+            style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-0.01em', padding: '8px 22px' }}
+          >
+            You're ready
+          </div>
           <h2 style={{ margin: 0 }}>{business.name}</h2>
           <CheckInQrCode slug={business.slug} />
           <p className="text-muted" style={{ margin: 0, maxWidth: 280 }}>
