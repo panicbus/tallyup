@@ -417,6 +417,20 @@ export function runCheckInPortContractTests<Fixtures extends { realDb?: unknown 
       expect(notConsented?.hasSmsConsent).toBe(false);
     });
 
+    test('listCustomers reports lifetime points and rewards given per customer', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 3 });
+      // 7 confirmed visits then 2 redemptions: 7 points ever earned, 2 rewards
+      // given, 1 point still unspent (7 - 3 - 3).
+      const customerId = await checkInNTimes(port, business, '+15551230050', 7);
+      await port.redeem({ customerId, confirmedBy: business.confirmedBy });
+      await port.redeem({ customerId, confirmedBy: business.confirmedBy });
+
+      const result = await port.listCustomers({ businessId: business.id, page: 1, pageSize: 10, sort: 'joined', dir: 'asc' });
+
+      expect(result.items[0]).toMatchObject({ points: 1, lifetimePoints: 7, rewardsGiven: 2 });
+    });
+
     test('listAllCustomers returns every customer, unpaginated, scoped per business', async ({ realDb }) => {
       const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
       const businessA = await seedBusiness({ slug: `contract-a-${crypto.randomUUID()}`, rewardThreshold: 10 });
@@ -446,6 +460,17 @@ export function runCheckInPortContractTests<Fixtures extends { realDb?: unknown 
       const all = await port.listAllCustomers(business.id);
 
       expect(all[0]?.hasSmsConsent).toBe(true);
+    });
+
+    test('listAllCustomers reports lifetime points and rewards given per customer', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 3 });
+      const customerId = await checkInNTimes(port, business, '+15551230051', 4);
+      await port.redeem({ customerId, confirmedBy: business.confirmedBy });
+
+      const all = await port.listAllCustomers(business.id);
+
+      expect(all[0]).toMatchObject({ lifetimePoints: 4, rewardsGiven: 1 });
     });
 
     test('getBusinessStats counts check-ins, new customers, and rewards since the cutoff', async ({ realDb }) => {

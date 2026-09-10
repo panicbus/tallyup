@@ -18,6 +18,22 @@ export function normalizePhone(raw: string): string | null {
   return `+1${tenDigits}`;
 }
 
+/**
+ * Formats a US number for human display as (XXX) XXX-XXXX. Accepts anything
+ * normalizePhone does (E.164, bare 10 or 11 digits, extra formatting), and
+ * returns the input untouched if it isn't a plausible 10-digit US number,
+ * so it's safe to call on stored data of unknown provenance.
+ */
+export function formatUsPhone(raw: string): string {
+  const e164 = normalizePhone(raw);
+  if (!e164) {
+    return raw;
+  }
+
+  const tenDigits = e164.slice(2); // drop the "+1"
+  return `(${tenDigits.slice(0, 3)}) ${tenDigits.slice(3, 6)}-${tenDigits.slice(6)}`;
+}
+
 export const phoneSchema = z.string().transform((value, ctx) => {
   const normalized = normalizePhone(value);
   if (!normalized) {

@@ -133,7 +133,7 @@ export function Customers() {
 
           <div style={{ display: 'flex', gap: 8 }}>
             <SortButton label="Joined" active={sort === 'joined'} dir={dir} onClick={() => toggleSort('joined')} />
-            <SortButton label="Points" active={sort === 'points'} dir={dir} onClick={() => toggleSort('points')} />
+            <SortButton label="Current points" active={sort === 'points'} dir={dir} onClick={() => toggleSort('points')} />
           </div>
 
           {data && data.items.length === 0 ? (

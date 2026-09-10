@@ -7,7 +7,7 @@ import { requireOwner } from './require-owner.js';
 import { ownerBySlugParam, requireOwnership } from './require-ownership.js';
 import type { AppDependencies } from '../app.js';
 
-const CSV_HEADER = ['Phone', 'Points', 'Joined', 'SMS Consent'];
+const CSV_HEADER = ['Phone', 'Current points', 'Lifetime points', 'Rewards given', 'Joined', 'SMS Consent'];
 
 const MAX_PAGE_SIZE = 100;
 const DEFAULT_PAGE_SIZE = 25;
@@ -56,8 +56,10 @@ export async function customerRoutes(app: FastifyInstance, deps: AppDependencies
       const rows = [
         CSV_HEADER,
         ...entries.map((entry) => [
-          entry.maskedPhone,
+          entry.displayPhone,
           String(entry.points),
+          String(entry.lifetimePoints),
+          String(entry.rewardsGiven),
           entry.joinedAt.toISOString(),
           entry.hasSmsConsent ? 'yes' : 'no',
         ]),

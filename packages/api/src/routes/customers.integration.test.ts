@@ -43,7 +43,7 @@ function buildAuthedApp(realDb: Kysely<Database>) {
 }
 
 describe('GET /businesses/:slug/customers, end to end via HTTP', () => {
-  test('returns real customers with masked phones, never the raw number', async ({ realDb }) => {
+  test('returns real customers with masked phones for anyone who did not opt in, never the raw number', async ({ realDb }) => {
     const { business, authUserId } = await seedBusinessAndStaff(realDb);
     const { app, issueToken } = buildAuthedApp(realDb);
     const headers = { authorization: `Bearer ${issueToken({ userId: authUserId, email: 'e2e@example.com' })}` };
@@ -61,11 +61,17 @@ describe('GET /businesses/:slug/customers, end to end via HTTP', () => {
     expect(response.statusCode).toBe(200);
     const body = response.json();
     expect(body.items).toHaveLength(1);
-    expect(body.items[0]).toMatchObject({ maskedPhone: '•••-•••-0011', points: 1, hasSmsConsent: false });
+    expect(body.items[0]).toMatchObject({
+      displayPhone: '•••-•••-0011',
+      points: 1,
+      lifetimePoints: 1,
+      rewardsGiven: 0,
+      hasSmsConsent: false,
+    });
     expect(JSON.stringify(body)).not.toContain('5559990011');
   });
 
-  test('reflects sms consent for a customer who opted in', async ({ realDb }) => {
+  test('shows the full number for a customer who opted in to SMS', async ({ realDb }) => {
     const { business, authUserId } = await seedBusinessAndStaff(realDb);
     const { app, issueToken } = buildAuthedApp(realDb);
     const headers = { authorization: `Bearer ${issueToken({ userId: authUserId, email: 'e2e@example.com' })}` };
@@ -80,7 +86,8 @@ describe('GET /businesses/:slug/customers, end to end via HTTP', () => {
 
     const response = await app.inject({ method: 'GET', url: `/businesses/${business.slug}/customers`, headers });
 
-    expect(response.json().items[0]).toMatchObject({ hasSmsConsent: true });
+    // The whole number, formatted for display -- not raw E.164.
+    expect(response.json().items[0]).toMatchObject({ hasSmsConsent: true, displayPhone: '(555) 999-0012' });
   });
 
   test('a staff member cannot read another business\'s roster', async ({ realDb }) => {
@@ -100,18 +107,24 @@ describe('GET /businesses/:slug/customers, end to end via HTTP', () => {
 });
 
 describe('GET /businesses/:slug/customers/export, end to end via HTTP', () => {
-  test('exports real customers as CSV with masked phones, never the raw number', async ({ realDb }) => {
+  test('exports real customers as CSV: full number for opted-in, masked for everyone else', async ({ realDb }) => {
     const { business, authUserId } = await seedBusinessAndStaff(realDb);
     const { app, issueToken } = buildAuthedApp(realDb);
     const headers = { authorization: `Bearer ${issueToken({ userId: authUserId, email: 'e2e@example.com' })}` };
 
-    const createResponse = await app.inject({
+    const optedIn = await app.inject({
       method: 'POST',
       url: `/businesses/${business.slug}/pending-checkins`,
       payload: { phone: '555-999-0013', smsConsent: true },
     });
-    const { id: pendingCheckinId } = createResponse.json();
-    await app.inject({ method: 'POST', url: `/pending-checkins/${pendingCheckinId}/confirm`, headers });
+    await app.inject({ method: 'POST', url: `/pending-checkins/${optedIn.json().id}/confirm`, headers });
+
+    const noConsent = await app.inject({
+      method: 'POST',
+      url: `/businesses/${business.slug}/pending-checkins`,
+      payload: { phone: '555-999-0014' },
+    });
+    await app.inject({ method: 'POST', url: `/pending-checkins/${noConsent.json().id}/confirm`, headers });
 
     const response = await app.inject({
       method: 'GET',
@@ -122,12 +135,21 @@ describe('GET /businesses/:slug/customers/export, end to end via HTTP', () => {
     expect(response.statusCode).toBe(200);
     expect(response.headers['content-type']).toMatch(/text\/csv/);
     const lines = response.body.split('\r\n');
-    expect(lines[0]).toBe('Phone,Points,Joined,SMS Consent');
-    const [phone, points, joined, consent] = lines[1]!.split(',');
-    expect(phone).toBe('•••-•••-0013');
+    expect(lines[0]).toBe('Phone,Current points,Lifetime points,Rewards given,Joined,SMS Consent');
+
+    const [phone, points, lifetime, rewards, joined, consent] = lines[1]!.split(',');
+    // Formatted, not raw E.164: a leading "+" reads as a formula in Excel.
+    expect(phone).toBe('(555) 999-0013');
+    expect(/^[=+\-@]/.test(phone!)).toBe(false);
     expect(points).toBe('1');
+    expect(lifetime).toBe('1');
+    expect(rewards).toBe('0');
     expect(new Date(joined!).getTime()).not.toBeNaN();
     expect(consent).toBe('yes');
-    expect(response.body).not.toContain('5559990013');
+
+    const [maskedPhone, , , , , maskedConsent] = lines[2]!.split(',');
+    expect(maskedPhone).toBe('•••-•••-0014');
+    expect(maskedConsent).toBe('no');
+    expect(response.body).not.toContain('5559990014');
   });
 });

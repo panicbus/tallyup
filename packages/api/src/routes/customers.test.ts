@@ -140,7 +140,9 @@ describe('GET /businesses/:slug/customers/export', () => {
 
     expect(response.statusCode).toBe(200);
     expect(response.headers['content-type']).toMatch(/text\/csv/);
-    expect(response.body.split('\r\n')[0]).toBe('Phone,Points,Joined,SMS Consent');
+    expect(response.body.split('\r\n')[0]).toBe(
+      'Phone,Current points,Lifetime points,Rewards given,Joined,SMS Consent',
+    );
   });
 
   it('403s for a non-owner staff member', async () => {

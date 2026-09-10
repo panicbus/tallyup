@@ -30,8 +30,16 @@ export interface QueuedPendingCheckin {
 
 export interface RosterEntry {
   id: string;
-  maskedPhone: string;
+  /** Full number, formatted (XXX) XXX-XXXX, for a customer who opted in to
+   * SMS; masked to the last 4 digits for everyone else. The api decides
+   * which and does the formatting. */
+  displayPhone: string;
+  /** Unspent balance toward the next reward. */
   points: number;
+  /** Every point ever earned, one per confirmed visit, before rewards spent. */
+  lifetimePoints: number;
+  /** Rewards this customer has redeemed. */
+  rewardsGiven: number;
   joinedAt: string;
   hasSmsConsent: boolean;
 }

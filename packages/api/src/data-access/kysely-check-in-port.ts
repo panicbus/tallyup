@@ -45,6 +45,23 @@ function rosterColumns(eb: ExpressionBuilder<Database, 'customers'>) {
           .whereRef('sms_consents.phone', '=', 'customers.phone'),
       )
       .as('has_sms_consent'),
+    // Both halves of the (business_id, customer_id) index are constrained so
+    // the count is an index seek, not a per-row scan of the whole table --
+    // same correlation shape as the sms_consents subquery above. customer_id
+    // alone already identifies the rows (customers.id is a global PK); the
+    // business_id ref is purely so the index is usable.
+    eb
+      .selectFrom('visits')
+      .whereRef('visits.business_id', '=', 'customers.business_id')
+      .whereRef('visits.customer_id', '=', 'customers.id')
+      .select((e) => e.fn.countAll().as('c'))
+      .as('lifetime_points'),
+    eb
+      .selectFrom('redemptions')
+      .whereRef('redemptions.business_id', '=', 'customers.business_id')
+      .whereRef('redemptions.customer_id', '=', 'customers.id')
+      .select((e) => e.fn.countAll().as('c'))
+      .as('rewards_given'),
   ];
 }
 
@@ -56,6 +73,11 @@ function toRosterEntry(row: {
   // Kysely types an `exists()` projection as SqlBool (boolean | number),
   // since some dialects return 0/1 rather than a real boolean.
   has_sms_consent: boolean | number;
+  // count() comes back as a string from node-postgres. Kysely types a
+  // scalar subquery as nullable; a COUNT(*) never actually is, and
+  // Number(null) would be 0 anyway.
+  lifetime_points: string | number | bigint | null;
+  rewards_given: string | number | bigint | null;
 }): CustomerRosterEntry {
   return {
     id: row.id,
@@ -63,6 +85,8 @@ function toRosterEntry(row: {
     points: row.points,
     createdAt: new Date(row.created_at),
     hasSmsConsent: Boolean(row.has_sms_consent),
+    lifetimePoints: Number(row.lifetime_points),
+    rewardsGiven: Number(row.rewards_given),
   };
 }
 

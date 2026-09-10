@@ -53,8 +53,8 @@ export function createInMemoryCheckInPort() {
   const smsConsents: StoredSmsConsent[] = [];
   // Event logs the real adapter keeps as `visits` / `redemptions` rows —
   // needed here only so getBusinessStats can count them.
-  const visits: { businessId: string; createdAt: Date }[] = [];
-  const redemptions: { businessId: string; createdAt: Date }[] = [];
+  const visits: { businessId: string; customerId: string; createdAt: Date }[] = [];
+  const redemptions: { businessId: string; customerId: string; createdAt: Date }[] = [];
 
   function businessView(business: StoredBusiness): Business {
     return {
@@ -102,7 +102,6 @@ export function createInMemoryCheckInPort() {
       }
       pending.confirmedAt = new Date();
       void confirmedBy; // the real adapter also stamps the `visits` row with it
-      visits.push({ businessId: pending.businessId, createdAt: pending.confirmedAt });
 
       const business = businesses.get(pending.businessId);
       if (!business) {
@@ -115,6 +114,7 @@ export function createInMemoryCheckInPort() {
         ? { ...existingCustomer, points: existingCustomer.points + 1 }
         : { id: randomUUID(), businessId: pending.businessId, phone: pending.phone, points: 1, createdAt: new Date() };
       customers.set(customerKey, customer);
+      visits.push({ businessId: pending.businessId, customerId: customer.id, createdAt: pending.confirmedAt });
 
       return {
         outcome: 'confirmed',
@@ -140,7 +140,7 @@ export function createInMemoryCheckInPort() {
       }
 
       customer.points -= business.rewardThreshold;
-      redemptions.push({ businessId: customer.businessId, createdAt: new Date() });
+      redemptions.push({ businessId: customer.businessId, customerId: customer.id, createdAt: new Date() });
 
       return {
         outcome: 'redeemed',
@@ -248,6 +248,8 @@ export function createInMemoryCheckInPort() {
       points: customer.points,
       createdAt: customer.createdAt,
       hasSmsConsent: smsConsents.some((s) => s.businessId === businessId && s.phone === customer.phone),
+      lifetimePoints: visits.filter((v) => v.customerId === customer.id).length,
+      rewardsGiven: redemptions.filter((r) => r.customerId === customer.id).length,
     };
   }
 

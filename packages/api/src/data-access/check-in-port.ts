@@ -39,9 +39,15 @@ export interface CheckinStatusCustomer {
 export interface CustomerRosterEntry {
   id: string;
   phone: string;
+  /** Unspent balance toward the next reward. */
   points: number;
   createdAt: Date;
   hasSmsConsent: boolean;
+  /** Every point the customer has ever earned (one per confirmed visit),
+   * ignoring what they've since spent on rewards. */
+  lifetimePoints: number;
+  /** How many rewards this customer has redeemed. */
+  rewardsGiven: number;
 }
 
 export interface CustomerRosterPage {

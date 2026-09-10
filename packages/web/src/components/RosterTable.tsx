@@ -15,7 +15,9 @@ export function RosterTable({ items }: RosterTableProps) {
         <thead>
           <tr>
             <th>Phone</th>
-            <th>Points</th>
+            <th>Current points</th>
+            <th>Lifetime points</th>
+            <th>Rewards given</th>
             <th>Joined</th>
             <th>SMS</th>
           </tr>
@@ -23,8 +25,10 @@ export function RosterTable({ items }: RosterTableProps) {
         <tbody>
           {items.map((item) => (
             <tr key={item.id}>
-              <td style={{ fontFamily: 'ui-monospace, monospace' }}>{item.maskedPhone}</td>
+              <td style={{ fontFamily: 'ui-monospace, monospace' }}>{item.displayPhone}</td>
               <td>{item.points}</td>
+              <td>{item.lifetimePoints}</td>
+              <td>{item.rewardsGiven}</td>
               <td>{formatJoinedDate(item.joinedAt)}</td>
               <td>
                 {item.hasSmsConsent ? (
