@@ -1,10 +1,12 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Settings as SettingsIcon } from 'lucide-react';
+import { ProfileMenu } from './ProfileMenu';
 
 interface StaffHeaderProps {
   slug: string;
   businessName: string;
   logoUrl: string | null;
+  userEmail: string;
   onSignOut: () => void;
   /** Owners get a Staff tab; other staff don't manage the roster. */
   showStaffTab?: boolean;
@@ -18,7 +20,14 @@ interface StaffHeaderProps {
  * used to be hardcoded to the Dashboard tab regardless of which page was
  * actually active.
  */
-export function StaffHeader({ slug, businessName, logoUrl, onSignOut, showStaffTab = false }: StaffHeaderProps) {
+export function StaffHeader({
+  slug,
+  businessName,
+  logoUrl,
+  userEmail,
+  onSignOut,
+  showStaffTab = false,
+}: StaffHeaderProps) {
   const { pathname } = useLocation();
 
   const tabs = [
@@ -67,20 +76,17 @@ export function StaffHeader({ slug, businessName, logoUrl, onSignOut, showStaffT
         ))}
       </nav>
 
-      <div className="text-muted staff-signed-in-mobile" style={{ marginLeft: 'auto', fontSize: 12 }}>
-        Staff · signed in
+      <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <Link
+          to={`/dashboard/${slug}/settings`}
+          aria-label="Settings"
+          className="settings-icon-mobile"
+          style={{ color: 'var(--color-neutral-600)', padding: 4, display: 'flex' }}
+        >
+          <SettingsIcon size={18} />
+        </Link>
+        <ProfileMenu email={userEmail} onSignOut={onSignOut} />
       </div>
-      <Link
-        to={`/dashboard/${slug}/settings`}
-        aria-label="Settings"
-        className="settings-icon-mobile"
-        style={{ color: 'var(--color-neutral-600)', padding: 4, display: 'flex' }}
-      >
-        <SettingsIcon size={18} />
-      </Link>
-      <button type="button" onClick={onSignOut} className="sign-out-desktop">
-        Sign out
-      </button>
     </div>
   );
 }

@@ -340,6 +340,43 @@ input[type='number']::-webkit-outer-spin-button {
 }
 .dropdown-menu button[aria-selected='true'] { font-weight: 700; }
 
+/* — profile menu: the signed-in avatar in the top bar, with a menu that
+   opens down-and-left (it sits at the right edge of the header) — */
+.profile-menu { position: relative; flex: none; }
+.avatar-btn {
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 1px solid var(--color-divider);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+.profile-menu .dropdown-menu {
+  left: auto;
+  right: 0;
+  min-width: 200px;
+}
+.profile-menu-label {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px 14px 8px;
+  margin-bottom: 4px;
+  font-size: 12px;
+  color: color-mix(in srgb, var(--color-text) 55%, transparent);
+  border-bottom: 1px solid var(--color-divider);
+}
+.profile-menu-email { color: var(--color-text); font-size: 13px; word-break: break-all; }
+.dropdown-menu button.profile-menu-signout { color: var(--color-accent-700); }
+
 /* — prose: the Terms / Privacy body column — */
 .prose { display: flex; flex-direction: column; gap: 12px; font-size: 14px; line-height: 1.6; max-width: 62ch; }
 .prose p { margin: 0; }
@@ -399,8 +436,7 @@ input[type='number']::-webkit-outer-spin-button {
    two-layer auth stage) — the finer per-row type-scale bumps the desktop
    mockup also has (13px vs 12px wait labels etc.) are treated as
    equivalent-enough at this size and left at their mobile values. — */
-.nav-tabs,
-.sign-out-desktop {
+.nav-tabs {
   display: none;
 }
 
@@ -448,8 +484,7 @@ input[type='number']::-webkit-outer-spin-button {
   .app-header {
     padding: 20px 40px !important;
   }
-  .app-header .settings-icon-mobile,
-  .app-header .staff-signed-in-mobile {
+  .app-header .settings-icon-mobile {
     display: none !important;
   }
   .field-grid-2 {
@@ -480,15 +515,6 @@ input[type='number']::-webkit-outer-spin-button {
   .nav-tab[aria-current='page'] {
     background: var(--color-accent);
     color: var(--color-bg);
-  }
-  .sign-out-desktop {
-    display: inline-flex;
-    margin-left: auto;
-    font-size: 12px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: color-mix(in srgb, var(--color-text) 55%, transparent);
   }
   .app-content {
     padding: 40px !important;

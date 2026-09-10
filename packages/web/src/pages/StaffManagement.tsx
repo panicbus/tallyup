@@ -158,6 +158,7 @@ export function StaffManagement() {
           slug={slug}
           businessName={me.business.name}
           logoUrl={me.business.logoUrl}
+          userEmail={me.email}
           onSignOut={handleSignOut}
           showStaffTab={me.role === 'owner'}
         />

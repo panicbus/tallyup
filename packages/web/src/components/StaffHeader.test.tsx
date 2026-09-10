@@ -12,7 +12,13 @@ const tabs = () => within(screen.getByRole('navigation', { name: 'Primary' }));
 function renderAt(path: string, onSignOut: () => void = () => {}) {
   return render(
     <MemoryRouter initialEntries={[path]}>
-      <StaffHeader slug="demo-shop" businessName="Demo Shop" logoUrl={null} onSignOut={onSignOut} />
+      <StaffHeader
+        slug="demo-shop"
+        businessName="Demo Shop"
+        logoUrl={null}
+        userEmail="owner@demo-shop.com"
+        onSignOut={onSignOut}
+      />
     </MemoryRouter>,
   );
 }
@@ -46,11 +52,13 @@ describe('StaffHeader', () => {
     expect(screen.getByText('Demo Shop')).toBeTruthy();
   });
 
-  it('calls onSignOut when the sign-out button is clicked', async () => {
+  it('opens the account menu and calls onSignOut from it', async () => {
     const onSignOut = vi.fn();
     renderAt('/dashboard/demo-shop', onSignOut);
 
-    await userEvent.click(screen.getByRole('button', { name: /sign out/i }));
+    await userEvent.click(screen.getByRole('button', { name: /account menu/i }));
+    expect(screen.getByText('owner@demo-shop.com')).toBeTruthy();
+    await userEvent.click(screen.getByRole('menuitem', { name: 'Sign out' }));
 
     expect(onSignOut).toHaveBeenCalled();
   });
