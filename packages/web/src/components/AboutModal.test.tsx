@@ -17,7 +17,7 @@ describe('AboutModal', () => {
     renderModal();
 
     expect(screen.getByRole('heading', { name: 'About TallyUp' })).toBeTruthy();
-    expect(screen.getByText(/digital loyalty punch card/i)).toBeTruthy();
+    expect(screen.getByText(/digital loyalty program/i)).toBeTruthy();
     expect(screen.getByText(/scans your shop's QR code/i)).toBeTruthy();
   });
 
