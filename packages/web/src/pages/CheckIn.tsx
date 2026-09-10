@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import { SearchX, Clock } from 'lucide-react';
 import { normalizePhone } from '@tallyup/shared';
 import { createPendingCheckin, getBusiness, getCheckinStatus } from '../lib/api';
@@ -41,8 +41,15 @@ type Phase =
   | { name: 'confirmed'; points: number; eligibleForRedemption: boolean }
   | { name: 'expired' };
 
+// The one shop reachable without a QR: the landing page links to
+// /checkin/demo so a prospective owner can preview the customer flow. It
+// gets a standing notice so nobody mistakes it for their real check-in
+// page, which customers only ever reach by scanning the shop's code.
+const DEMO_SLUG = 'demo';
+
 export function CheckIn() {
   const { slug } = useParams() as { slug: string };
+  const isDemo = slug === DEMO_SLUG;
   const [business, setBusiness] = useState<BusinessSummary | null>(null);
   const [phase, setPhase] = useState<Phase>({ name: 'loading' });
   const [consentedPhones, setConsentedPhones] = useState<Set<string>>(() => loadConsentedPhones(slug));
@@ -79,6 +86,13 @@ export function CheckIn() {
   }, [phase]);
 
   async function handleSubmit(phone: string, smsConsent: boolean) {
+    if (isDemo) {
+      // Preview only: never write to the real queue. Jump straight to a
+      // representative confirmed card so the previewer sees the payoff.
+      setPhase({ name: 'confirmed', points: 1, eligibleForRedemption: false });
+      return;
+    }
+
     setPhase({ name: 'submitting' });
     const pending = await createPendingCheckin(slug, phone, smsConsent);
 
@@ -143,6 +157,28 @@ export function CheckIn() {
   return (
     <div className="page">
       <div className="page-content">
+        {isDemo && (
+          <>
+            <div
+              role="note"
+              style={{
+                fontSize: 12,
+                lineHeight: 1.4,
+                textAlign: 'center',
+                padding: '8px 12px',
+                borderRadius: 'var(--radius-sm)',
+                background: 'var(--color-surface)',
+                color: 'var(--color-neutral-600)',
+              }}
+            >
+              Customer view for demonstration purposes only. Your customers reach this by scanning your shop's QR code.
+            </div>
+            <Link to="/login" style={{ fontSize: 13, alignSelf: 'center' }}>
+              &larr; Back to sign in
+            </Link>
+          </>
+        )}
+
         {(phase.name === 'form' || phase.name === 'submitting') && (
           <>
             {business!.logoUrl && (
