@@ -1,6 +1,9 @@
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { QrCode, Smartphone, Gift } from 'lucide-react';
 import { LegalLinks } from '../components/LegalLinks';
+import { supabaseClient } from '../lib/supabase';
+import { getMe } from '../lib/api';
 
 const STEPS = [
   { icon: QrCode, title: 'Put your code by the register', body: 'One QR code, printed once. Tape it up and you’re live.' },
@@ -9,6 +12,38 @@ const STEPS = [
 ];
 
 export function Landing() {
+  const navigate = useNavigate();
+  // A signed-in staff member lands on their dashboard, not the marketing
+  // page. Anonymous visitors have no session, so getSession() returns
+  // instantly and they see this without a flash.
+  const [checking, setChecking] = useState(true);
+  useEffect(() => {
+    let cancelled = false;
+    supabaseClient.auth.getSession().then(async ({ data }) => {
+      if (cancelled) return;
+      const me = data.session ? await getMe().catch(() => null) : null;
+      if (cancelled) return;
+      if (me) {
+        navigate(`/dashboard/${me.business.slug}`, { replace: true });
+      } else {
+        setChecking(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate]);
+
+  if (checking) {
+    return (
+      <div className="page">
+        <div className="page-content" style={{ alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+          <p className="text-muted">Loading…</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page">
       <div className="page-content" style={{ alignItems: 'center', textAlign: 'center', gap: 22, paddingTop: 48 }}>

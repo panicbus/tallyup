@@ -108,6 +108,12 @@ chicken-and-egg wait:
    hire's inline sign-up returns no session, and the invite flow falls back
    to a two-visit "confirm your email, then reopen the link" path.
 
+   **Set the session length**: **Authentication -> Sessions** -> set
+   **Inactivity timeout** to `720` hours (30 days) and leave **Time-box user
+   sessions** empty. The web client persists the session and auto-refreshes
+   it, so any visit inside a 30-day window slides the expiry forward; a
+   month with no visits logs the user out. Default is no timeout at all.
+
 2. **Render** (api): New -> Blueprint, connect this repo — `render.yaml` at
    the root defines the service. It'll prompt for the env vars in
    `render.yaml`: `DATABASE_URL` (from step 1), `SUPABASE_URL`,
