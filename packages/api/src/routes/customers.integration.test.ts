@@ -147,9 +147,9 @@ describe('GET /businesses/:slug/customers/export, end to end via HTTP', () => {
     expect(new Date(joined!).getTime()).not.toBeNaN();
     expect(consent).toBe('yes');
 
-    const [maskedPhone, , , , , maskedConsent] = lines[2]!.split(',');
-    expect(maskedPhone).toBe('•••-•••-0014');
-    expect(maskedConsent).toBe('no');
+    const maskedCols = lines[2]!.split(',');
+    expect(maskedCols[0]).toBe('•••-•••-0014');
+    expect(maskedCols[5]).toBe('no');
     expect(response.body).not.toContain('5559990014');
   });
 });

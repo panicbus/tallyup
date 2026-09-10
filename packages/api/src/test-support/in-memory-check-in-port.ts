@@ -51,8 +51,9 @@ export function createInMemoryCheckInPort() {
   // Array, not a Map: append-only, and more than one consent per
   // (businessId, phone) is expected and must never overwrite an earlier one.
   const smsConsents: StoredSmsConsent[] = [];
-  // Event logs the real adapter keeps as `visits` / `redemptions` rows —
-  // needed here only so getBusinessStats can count them.
+  // Event logs the real adapter keeps as `visits` / `redemptions` rows.
+  // getBusinessStats counts them by date; the roster counts them per
+  // customer for lifetime points and rewards given.
   const visits: { businessId: string; customerId: string; createdAt: Date }[] = [];
   const redemptions: { businessId: string; customerId: string; createdAt: Date }[] = [];
 

@@ -1,28 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import { RosterCardList } from './RosterCardList';
-import type { RosterEntry } from '../lib/api';
-
-const items: RosterEntry[] = [
-  {
-    id: 'c1',
-    displayPhone: '(555) 123-1234',
-    points: 3,
-    lifetimePoints: 13,
-    rewardsGiven: 1,
-    joinedAt: '2026-01-01T00:00:00Z',
-    hasSmsConsent: true,
-  },
-  {
-    id: 'c2',
-    displayPhone: '•••-•••-5678',
-    points: 0,
-    lifetimePoints: 0,
-    rewardsGiven: 0,
-    joinedAt: '2026-02-01T00:00:00Z',
-    hasSmsConsent: false,
-  },
-];
+import { rosterItems as items } from '../test-support/roster-fixtures';
 
 describe('RosterCardList', () => {
   it('renders one card per customer with the phone, current points, lifetime points, and rewards given', () => {
