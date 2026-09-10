@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate, useParams } from 'react-router-dom';
-import { Pencil, QrCode, Users, X } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
+import { Pencil, QrCode, X } from 'lucide-react';
 import { getMe, updateBusiness } from '../lib/api';
 import type { MeResponse } from '../lib/api';
 import { supabaseClient } from '../lib/supabase';
@@ -171,15 +171,6 @@ export function Settings() {
                   </button>
                 </div>
               </div>
-              {me.role === 'owner' && (
-                <Link
-                  to={`/dashboard/${slug}/staff`}
-                  className="btn btn-secondary"
-                  style={{ alignSelf: 'flex-start', display: 'flex', alignItems: 'center', gap: 6 }}
-                >
-                  <Users size={14} /> Manage staff
-                </Link>
-              )}
               <button
                 type="button"
                 onClick={handleSignOut}

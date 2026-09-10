@@ -6,6 +6,8 @@ interface StaffHeaderProps {
   businessName: string;
   logoUrl: string | null;
   onSignOut: () => void;
+  /** Owners get a Staff tab; other staff don't manage the roster. */
+  showStaffTab?: boolean;
 }
 
 /**
@@ -16,12 +18,13 @@ interface StaffHeaderProps {
  * used to be hardcoded to the Dashboard tab regardless of which page was
  * actually active.
  */
-export function StaffHeader({ slug, businessName, logoUrl, onSignOut }: StaffHeaderProps) {
+export function StaffHeader({ slug, businessName, logoUrl, onSignOut, showStaffTab = false }: StaffHeaderProps) {
   const { pathname } = useLocation();
 
   const tabs = [
     { label: 'Dashboard', href: `/dashboard/${slug}` },
     { label: 'Customers', href: `/dashboard/${slug}/customers` },
+    ...(showStaffTab ? [{ label: 'Staff', href: `/dashboard/${slug}/staff` }] : []),
     { label: 'Settings', href: `/dashboard/${slug}/settings` },
   ];
 

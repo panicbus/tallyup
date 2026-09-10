@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react';
-import { AlertTriangle, CheckCircle } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 import { LogoPicker } from './LogoPicker';
+import { InfoTip } from './InfoTip';
 
 interface SettingsFormBusiness {
   name: string;
@@ -58,7 +59,12 @@ export function SettingsForm({ business, onSubmit, submitting, saved, error }: S
         </div>
 
         <div className="field">
-          <label htmlFor="settings-punches-needed">Punches needed</label>
+          <label htmlFor="settings-punches-needed" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+            Punches needed
+            <InfoTip label="About punches needed">
+              Lowering this can make customers who are already partway there instantly eligible for a reward.
+            </InfoTip>
+          </label>
           <input
             id="settings-punches-needed"
             className="input"
@@ -98,20 +104,6 @@ export function SettingsForm({ business, onSubmit, submitting, saved, error }: S
         <p className="text-muted" style={{ fontSize: 12, margin: '6px 0 0' }}>
           Locked. It's printed on your counter sign.
         </p>
-      </div>
-
-      <div
-        style={{
-          background: 'var(--color-accent-100)',
-          borderRadius: 'var(--radius-md)',
-          padding: '12px 14px',
-          display: 'flex',
-          gap: 10,
-          fontSize: 13,
-        }}
-      >
-        <AlertTriangle size={16} color="var(--color-accent-700)" style={{ flex: 'none', marginTop: 2 }} />
-        <span>Lowering the punches needed can make customers already partway there instantly eligible for a reward.</span>
       </div>
 
       <button type="submit" className="btn btn-primary btn-block" disabled={submitting}>

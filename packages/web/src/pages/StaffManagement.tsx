@@ -150,7 +150,13 @@ export function StaffManagement() {
   return (
     <div className="page">
       <div className="app-shell" style={{ width: '100%', maxWidth: 'var(--page-max-width)' }}>
-        <StaffHeader slug={slug} businessName={me.business.name} logoUrl={me.business.logoUrl} onSignOut={handleSignOut} />
+        <StaffHeader
+          slug={slug}
+          businessName={me.business.name}
+          logoUrl={me.business.logoUrl}
+          onSignOut={handleSignOut}
+          showStaffTab={me.role === 'owner'}
+        />
 
         <div className="page-content app-content" style={{ paddingTop: 24, gap: 16, maxWidth: 'none' }}>
           {error && (

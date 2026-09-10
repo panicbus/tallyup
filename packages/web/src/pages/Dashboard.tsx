@@ -146,6 +146,7 @@ export function Dashboard() {
           businessName={me.business.name}
           logoUrl={me.business.logoUrl}
           onSignOut={handleSignOut}
+          showStaffTab={me.role === 'owner'}
         />
 
         <div className="page-content app-content" style={{ paddingTop: 24, gap: 12, maxWidth: 'none' }}>
