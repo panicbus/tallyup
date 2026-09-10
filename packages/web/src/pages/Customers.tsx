@@ -105,6 +105,7 @@ export function Customers() {
           businessName={me.business.name}
           logoUrl={me.business.logoUrl}
           userEmail={me.email}
+          userRole={me.role}
           onSignOut={handleSignOut}
           showStaffTab={me.role === 'owner'}
         />

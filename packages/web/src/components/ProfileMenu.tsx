@@ -2,16 +2,19 @@ import { useEffect, useRef, useState } from 'react';
 
 interface ProfileMenuProps {
   email: string;
+  role: string;
   onSignOut: () => void;
 }
 
 /** The signed-in indicator in the top bar: a round button showing the first
  * letter of the account's email. Clicking it opens a small menu with the
- * full address and a sign-out action. Closes on Escape or an outside click. */
-export function ProfileMenu({ email, onSignOut }: ProfileMenuProps) {
+ * full address, the role it grants, and a sign-out action. Closes on Escape
+ * or an outside click. */
+export function ProfileMenu({ email, role, onSignOut }: ProfileMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
   const initial = email.trim().charAt(0).toUpperCase() || '?';
+  const roleLabel = role === 'owner' ? 'Owner' : 'Staff';
 
   useEffect(() => {
     if (!open) return;
@@ -46,6 +49,7 @@ export function ProfileMenu({ email, onSignOut }: ProfileMenuProps) {
           <div className="profile-menu-label">
             Signed in as:
             <span className="profile-menu-email">{email}</span>
+            <span className="tag tag-neutral profile-menu-role">{roleLabel}</span>
           </div>
           <button type="button" role="menuitem" className="profile-menu-signout" onClick={onSignOut}>
             Sign out

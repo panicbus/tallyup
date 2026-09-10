@@ -7,6 +7,7 @@ interface StaffHeaderProps {
   businessName: string;
   logoUrl: string | null;
   userEmail: string;
+  userRole: string;
   onSignOut: () => void;
   /** Owners get a Staff tab; other staff don't manage the roster. */
   showStaffTab?: boolean;
@@ -25,6 +26,7 @@ export function StaffHeader({
   businessName,
   logoUrl,
   userEmail,
+  userRole,
   onSignOut,
   showStaffTab = false,
 }: StaffHeaderProps) {
@@ -85,7 +87,7 @@ export function StaffHeader({
         >
           <SettingsIcon size={18} />
         </Link>
-        <ProfileMenu email={userEmail} onSignOut={onSignOut} />
+        <ProfileMenu email={userEmail} role={userRole} onSignOut={onSignOut} />
       </div>
     </div>
   );

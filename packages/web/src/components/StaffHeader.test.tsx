@@ -17,6 +17,7 @@ function renderAt(path: string, onSignOut: () => void = () => {}) {
         businessName="Demo Shop"
         logoUrl={null}
         userEmail="owner@demo-shop.com"
+        userRole="owner"
         onSignOut={onSignOut}
       />
     </MemoryRouter>,
