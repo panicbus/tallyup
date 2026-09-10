@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto';
-import type { StaffContext, StaffPort } from '../data-access/staff-port.js';
+import { normalizeEmail } from '@tallyup/shared';
+import type { InviteDescription, StaffContext, StaffPort } from '../data-access/staff-port.js';
 import type { StaffRole } from '../data-access/types.js';
 
 const INVITE_TTL_MS = 7 * 24 * 60 * 60_000;
@@ -23,7 +24,10 @@ interface StoredInvite {
   // mechanism. Same principle as PENDING_CHECKIN_TTL_MS being duplicated
   // rather than shared: the contract suite is what keeps them from drifting.
   code: string;
+  /** Normalized, as the real column stores it. */
+  email: string;
   role: StaffRole;
+  createdBy: string;
   createdAt: Date;
   expiresAt: Date;
   redeemedAt: Date | null;
@@ -33,6 +37,7 @@ interface StoredInvite {
 export function createInMemoryStaffPort() {
   const staffById = new Map<string, StoredStaff>();
   const invites = new Map<string, StoredInvite>();
+  const businessesById = new Map<string, StaffContext['business']>();
 
   function toStaffContext(staff: StoredStaff): StaffContext {
     return { id: staff.id, email: staff.email, role: staff.role, business: staff.business };
@@ -49,6 +54,13 @@ export function createInMemoryStaffPort() {
     };
   }
 
+  // A business seeded through seedBusiness carries a real name/slug for
+  // describeInvite to return; one referenced only by id (route tests that
+  // seed on a different port) falls back to a placeholder.
+  function businessView(businessId: string): StaffContext['business'] {
+    return businessesById.get(businessId) ?? placeholderBusiness(businessId);
+  }
+
   const port: StaffPort = {
     async findByAuthUserId(authUserId: string): Promise<StaffContext | null> {
       for (const staff of staffById.values()) {
@@ -63,15 +75,69 @@ export function createInMemoryStaffPort() {
       return staffById.get(staffId)?.businessId ?? null;
     },
 
-    async createInvite({ businessId, role }) {
+    async createInvite({ businessId, email, role, createdBy }) {
+      const normalizedEmail = normalizeEmail(email);
+
+      // Supersede any still-live invite to the same address here.
+      for (const existing of invites.values()) {
+        if (
+          existing.businessId === businessId &&
+          existing.email === normalizedEmail &&
+          existing.redeemedAt === null &&
+          existing.expiresAt.getTime() > Date.now()
+        ) {
+          existing.redeemedAt = new Date();
+        }
+      }
+
       const id = randomUUID();
       const code = randomUUID();
       const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
-      invites.set(id, { id, businessId, code, role, createdAt: new Date(), expiresAt, redeemedAt: null, redeemedBy: null });
+      invites.set(id, {
+        id,
+        businessId,
+        code,
+        email: normalizedEmail,
+        role,
+        createdBy,
+        createdAt: new Date(),
+        expiresAt,
+        redeemedAt: null,
+        redeemedBy: null,
+      });
       return { id, code, expiresAt };
     },
 
+    async describeInvite(code): Promise<InviteDescription | null> {
+      const invite = [...invites.values()].find((i) => i.code === code);
+      if (!invite || invite.redeemedAt !== null || invite.expiresAt.getTime() <= Date.now()) {
+        return null;
+      }
+      const business = businessView(invite.businessId);
+      return {
+        businessName: business.name,
+        businessSlug: business.slug,
+        invitedBy: staffById.get(invite.createdBy)?.email ?? '',
+        role: invite.role,
+        email: invite.email,
+        expiresAt: invite.expiresAt,
+      };
+    },
+
     async redeemInvite({ code, authUserId, email }) {
+      // 1. Live invite, or invalid_code. Non-consuming.
+      const invite = [...invites.values()].find((i) => i.code === code);
+      if (!invite || invite.redeemedAt !== null || invite.expiresAt.getTime() <= Date.now()) {
+        return { outcome: 'invalid_code' };
+      }
+
+      // 2. The invite is a credential for one address. Do not consume on a
+      //    mismatch, so a forwarded link still works for its real recipient.
+      if (normalizeEmail(invite.email) !== normalizeEmail(email)) {
+        return { outcome: 'wrong_account' };
+      }
+
+      // 3. One identity, one active business. Checked before consuming.
       const alreadyActive = [...staffById.values()].some(
         (s) => s.authUserId === authUserId && s.deactivatedAt === null,
       );
@@ -79,10 +145,6 @@ export function createInMemoryStaffPort() {
         return { outcome: 'already_staff' };
       }
 
-      const invite = [...invites.values()].find((i) => i.code === code);
-      if (!invite || invite.redeemedAt !== null || invite.expiresAt.getTime() <= Date.now()) {
-        return { outcome: 'invalid_code' };
-      }
       invite.redeemedAt = new Date();
 
       const deactivated = [...staffById.values()].find(
@@ -94,18 +156,19 @@ export function createInMemoryStaffPort() {
         deactivated.deactivatedAt = null;
         deactivated.deactivatedBy = null;
         deactivated.role = invite.role;
+        deactivated.email = invite.email;
         staffId = deactivated.id;
       } else {
         staffId = randomUUID();
         staffById.set(staffId, {
           id: staffId,
           businessId: invite.businessId,
-          email,
+          email: invite.email,
           role: invite.role,
           authUserId,
           deactivatedAt: null,
           deactivatedBy: null,
-          business: placeholderBusiness(invite.businessId),
+          business: businessView(invite.businessId),
         });
       }
       invite.redeemedBy = staffId;
@@ -135,7 +198,7 @@ export function createInMemoryStaffPort() {
       const now = Date.now();
       const pendingInvites = [...invites.values()]
         .filter((i) => i.businessId === businessId && i.redeemedAt === null && i.expiresAt.getTime() > now)
-        .map((i) => ({ id: i.id, role: i.role, createdAt: i.createdAt, expiresAt: i.expiresAt }));
+        .map((i) => ({ id: i.id, email: i.email, role: i.role, createdAt: i.createdAt, expiresAt: i.expiresAt }));
 
       return { staff, pendingInvites };
     },
@@ -171,7 +234,7 @@ export function createInMemoryStaffPort() {
       authUserId: input.authUserId,
       deactivatedAt: null,
       deactivatedBy: null,
-      business: placeholderBusiness(input.businessId),
+      business: businessView(input.businessId),
     };
     staffById.set(id, staff);
     return toStaffContext(staff);
@@ -186,15 +249,24 @@ export function createInMemoryStaffPort() {
     addStaff,
 
     /** For the shared StaffPort contract suite — no real business row
-     * exists in this fake, so any unique id is a valid "business." */
-    async seedBusiness(): Promise<{ id: string }> {
-      return { id: randomUUID() };
+     * exists in this fake, so any unique id is a valid "business." The
+     * name/slug are remembered so describeInvite can return them. */
+    async seedBusiness(): Promise<{ id: string; name: string; slug: string }> {
+      const id = randomUUID();
+      const business = placeholderBusiness(id);
+      businessesById.set(id, business);
+      return { id, name: business.name, slug: business.slug };
     },
 
     /** For the shared StaffPort contract suite — a thin wrapper over
-     * addStaff returning just the id shape the contract needs. */
-    async seedStaff(input: { businessId: string; authUserId: string; role?: StaffRole }): Promise<{ id: string }> {
-      return { id: addStaff(input).id };
+     * addStaff returning just the id/email shape the contract needs. */
+    async seedStaff(input: {
+      businessId: string;
+      authUserId: string;
+      role?: StaffRole;
+    }): Promise<{ id: string; email: string }> {
+      const staff = addStaff({ ...input, email: `staff-${randomUUID()}@example.com` });
+      return { id: staff.id, email: staff.email };
     },
   };
 }

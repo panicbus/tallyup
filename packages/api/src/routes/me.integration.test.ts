@@ -5,6 +5,7 @@ import { buildApp } from '../app.js';
 import { createKyselyCheckInPort } from '../data-access/kysely-check-in-port.js';
 import { createKyselyStaffPort } from '../data-access/kysely-staff-port.js';
 import { createInMemoryAuthPort } from '../test-support/in-memory-auth-port.js';
+import { createInMemoryEmailPort } from '../test-support/in-memory-email-port.js';
 import type { Database } from '../data-access/types.js';
 
 async function seedBusinessWithStaff(db: Kysely<Database>, authUserId: string, logoUrl: string | null = null) {
@@ -36,7 +37,7 @@ describe('GET /me', () => {
     const { port: authPort, issueToken } = createInMemoryAuthPort();
     const token = issueToken({ userId: authUserId, email: 'owner@example.com' });
     const app = buildApp(
-      { checkInPort: createKyselyCheckInPort(realDb), staffPort: createKyselyStaffPort(realDb), authPort, db: realDb },
+      { checkInPort: createKyselyCheckInPort(realDb), staffPort: createKyselyStaffPort(realDb), authPort, emailPort: createInMemoryEmailPort().port, db: realDb, appUrl: 'http://test.local' },
       { logger: false },
     );
 
@@ -65,7 +66,7 @@ describe('GET /me', () => {
     const { port: authPort, issueToken } = createInMemoryAuthPort();
     const token = issueToken({ userId: authUserId, email: 'owner@example.com' });
     const app = buildApp(
-      { checkInPort: createKyselyCheckInPort(realDb), staffPort: createKyselyStaffPort(realDb), authPort, db: realDb },
+      { checkInPort: createKyselyCheckInPort(realDb), staffPort: createKyselyStaffPort(realDb), authPort, emailPort: createInMemoryEmailPort().port, db: realDb, appUrl: 'http://test.local' },
       { logger: false },
     );
 
@@ -76,7 +77,7 @@ describe('GET /me', () => {
 
   test('401s with no Authorization header', async ({ realDb }) => {
     const { port: authPort } = createInMemoryAuthPort();
-    const app = buildApp({ checkInPort: createKyselyCheckInPort(realDb), staffPort: createKyselyStaffPort(realDb), authPort, db: realDb }, { logger: false });
+    const app = buildApp({ checkInPort: createKyselyCheckInPort(realDb), staffPort: createKyselyStaffPort(realDb), authPort, emailPort: createInMemoryEmailPort().port, db: realDb, appUrl: 'http://test.local' }, { logger: false });
 
     const response = await app.inject({ method: 'GET', url: '/me' });
 
@@ -85,7 +86,7 @@ describe('GET /me', () => {
 
   test('401s for a token the auth provider does not recognize', async ({ realDb }) => {
     const { port: authPort } = createInMemoryAuthPort();
-    const app = buildApp({ checkInPort: createKyselyCheckInPort(realDb), staffPort: createKyselyStaffPort(realDb), authPort, db: realDb }, { logger: false });
+    const app = buildApp({ checkInPort: createKyselyCheckInPort(realDb), staffPort: createKyselyStaffPort(realDb), authPort, emailPort: createInMemoryEmailPort().port, db: realDb, appUrl: 'http://test.local' }, { logger: false });
 
     const response = await app.inject({
       method: 'GET',
@@ -99,7 +100,7 @@ describe('GET /me', () => {
   test('401s for a verified identity with no linked staff row', async ({ realDb }) => {
     const { port: authPort, issueToken } = createInMemoryAuthPort();
     const token = issueToken({ userId: randomUUID(), email: 'nobody@example.com' });
-    const app = buildApp({ checkInPort: createKyselyCheckInPort(realDb), staffPort: createKyselyStaffPort(realDb), authPort, db: realDb }, { logger: false });
+    const app = buildApp({ checkInPort: createKyselyCheckInPort(realDb), staffPort: createKyselyStaffPort(realDb), authPort, emailPort: createInMemoryEmailPort().port, db: realDb, appUrl: 'http://test.local' }, { logger: false });
 
     const response = await app.inject({ method: 'GET', url: '/me', headers: { authorization: `Bearer ${token}` } });
 

@@ -1,32 +1,52 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
-import { getStaffRoster } from '../services/staff-management.js';
+import { emailSchema } from '@tallyup/shared';
+import { getStaffRoster, sendStaffInvite } from '../services/staff-management.js';
 import { requireAuthenticatedIdentity, requireStaff } from './require-staff.js';
 import { requireOwner } from './require-owner.js';
 import { ownerByStaffIdParam, ownerBySlugParam, requireOwnership } from './require-ownership.js';
 import type { AppDependencies } from '../app.js';
 
 const staffRoleSchema = z.enum(['owner', 'staff']);
-const createInviteBodySchema = z.object({ role: staffRoleSchema });
+const createInviteBodySchema = z.object({ email: emailSchema, role: staffRoleSchema });
 const redeemInviteBodySchema = z.object({ code: z.string().trim().min(1) });
+const lookupInviteBodySchema = z.object({ code: z.string().trim().min(1) });
 
 export async function staffRoutes(app: FastifyInstance, deps: AppDependencies): Promise<void> {
   app.post(
     '/businesses/:slug/invites',
-    { preHandler: [requireStaff(deps), requireOwner, requireOwnership(deps, ownerBySlugParam)] },
+    {
+      preHandler: [requireStaff(deps), requireOwner, requireOwnership(deps, ownerBySlugParam)],
+      // This route sends an email to an arbitrary address on the owner's
+      // say-so, so it's a spam vector aimed at our sending domain's
+      // reputation. The limiter runs at onRequest, before the preHandlers
+      // set request.staff, so the key is the caller's IP, not their
+      // business -- coarse, but fine at pilot scale.
+      config: { rateLimit: { max: 5, timeWindow: '1 hour' } },
+    },
     async (request, reply) => {
       const parsedBody = createInviteBodySchema.safeParse(request.body);
       if (!parsedBody.success) {
         return reply.code(400).send({ error: 'invalid_body' });
       }
 
-      const invite = await deps.staffPort.createInvite({
-        businessId: request.staff!.business.id,
-        role: parsedBody.data.role,
-        createdBy: request.staff!.id,
-      });
+      const result = await sendStaffInvite(
+        { staffPort: deps.staffPort, emailPort: deps.emailPort, appUrl: deps.appUrl },
+        {
+          businessId: request.staff!.business.id,
+          businessName: request.staff!.business.name,
+          email: parsedBody.data.email,
+          role: parsedBody.data.role,
+          createdBy: request.staff!.id,
+          inviterEmail: request.staff!.email,
+        },
+      );
 
-      return reply.code(201).send(invite);
+      if (result.outcome === 'email_failed') {
+        return reply.code(502).send({ error: 'email_failed' });
+      }
+
+      return reply.code(201).send({ id: result.id, email: result.email, expiresAt: result.expiresAt });
     },
   );
 
@@ -89,6 +109,30 @@ export async function staffRoutes(app: FastifyInstance, deps: AppDependencies): 
   );
 
   app.post(
+    '/invites/lookup',
+    {
+      // Unauthenticated: the invitee has no account yet. POST, not GET, so
+      // the bearer code never lands in Fastify's request-URL logs. The
+      // body carries an email address keyed by that code, so it must not be
+      // cached anywhere.
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const parsedBody = lookupInviteBodySchema.safeParse(request.body);
+      if (!parsedBody.success) {
+        return reply.code(400).send({ error: 'invalid_body' });
+      }
+
+      const description = await deps.staffPort.describeInvite(parsedBody.data.code);
+      if (!description) {
+        return reply.code(404).send({ error: 'invalid_code' });
+      }
+
+      return reply.header('cache-control', 'no-store').code(200).send(description);
+    },
+  );
+
+  app.post(
     '/invites/redeem',
     {
       // The redeemer has no staff row by definition — a real identity is
@@ -112,6 +156,9 @@ export async function staffRoutes(app: FastifyInstance, deps: AppDependencies): 
 
       if (result.outcome === 'invalid_code') {
         return reply.code(400).send({ error: 'invalid_code' });
+      }
+      if (result.outcome === 'wrong_account') {
+        return reply.code(403).send({ error: 'wrong_account' });
       }
       if (result.outcome === 'already_staff') {
         return reply.code(409).send({ error: 'already_staff' });

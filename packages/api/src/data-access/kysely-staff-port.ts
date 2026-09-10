@@ -1,10 +1,12 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { normalizeEmail } from '@tallyup/shared';
 import type { Kysely } from 'kysely';
 import { findStaffByAuthUserId } from './staff.js';
 import type { Database } from './types.js';
 import type {
   CreatedInvite,
   DeactivateStaffResult,
+  InviteDescription,
   PendingInviteEntry,
   RedeemInviteResult,
   RevokeInviteResult,
@@ -28,33 +30,104 @@ export function createKyselyStaffPort(db: Kysely<Database>): StaffPort {
       return row?.business_id ?? null;
     },
 
-    async createInvite({ businessId, role, createdBy }): Promise<CreatedInvite> {
+    async createInvite({ businessId, email, role, createdBy }): Promise<CreatedInvite> {
       // 24 random bytes (192 bits), base64url-encoded — a bearer credential
       // granting access to a tenant, not a password, so a fast hash below
       // is the right tradeoff, not bcrypt/argon2 (a new dependency this
       // batch otherwise adds none of).
       const code = randomBytes(24).toString('base64url');
+      const normalizedEmail = normalizeEmail(email);
       const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
 
-      const row = await db
-        .insertInto('staff_invites')
-        .values({
-          business_id: businessId,
-          code_hash: hashInviteCode(code),
-          role,
-          created_by: createdBy,
-          expires_at: expiresAt,
-        })
-        .returning('id')
-        .executeTakeFirstOrThrow();
+      const row = await db.transaction().execute(async (trx) => {
+        // Supersede any still-live invite to the same address at this
+        // business. Only the hash is stored, so re-inviting is the only
+        // resend path, and a corrected/re-sent invite must kill the stale
+        // link. Same "consume via redeemed_at" idiom as revokeInvite.
+        await trx
+          .updateTable('staff_invites')
+          .set({ redeemed_at: new Date() })
+          .where('business_id', '=', businessId)
+          .where('email', '=', normalizedEmail)
+          .where('redeemed_at', 'is', null)
+          .where('expires_at', '>', new Date())
+          .execute();
+
+        return trx
+          .insertInto('staff_invites')
+          .values({
+            business_id: businessId,
+            code_hash: hashInviteCode(code),
+            email: normalizedEmail,
+            role,
+            created_by: createdBy,
+            expires_at: expiresAt,
+          })
+          .returning('id')
+          .executeTakeFirstOrThrow();
+      });
 
       return { id: row.id, code, expiresAt };
     },
 
+    async describeInvite(code): Promise<InviteDescription | null> {
+      const row = await db
+        .selectFrom('staff_invites')
+        .innerJoin('businesses', 'businesses.id', 'staff_invites.business_id')
+        .innerJoin('staff', 'staff.id', 'staff_invites.created_by')
+        .select([
+          'businesses.name as business_name',
+          'businesses.slug as business_slug',
+          'staff.email as inviter_email',
+          'staff_invites.email as invited_email',
+          'staff_invites.role as role',
+          'staff_invites.expires_at as expires_at',
+        ])
+        .where('staff_invites.code_hash', '=', hashInviteCode(code))
+        .where('staff_invites.redeemed_at', 'is', null)
+        .where('staff_invites.expires_at', '>', new Date())
+        .executeTakeFirst();
+      if (!row) {
+        return null;
+      }
+      return {
+        businessName: row.business_name,
+        businessSlug: row.business_slug,
+        invitedBy: row.inviter_email,
+        role: row.role,
+        email: row.invited_email,
+        expiresAt: new Date(row.expires_at),
+      };
+    },
+
     async redeemInvite({ code, authUserId, email }): Promise<RedeemInviteResult> {
       return db.transaction().execute(async (trx) => {
-        // Checked first, before the invite is touched at all — a request
-        // that was always going to fail shouldn't burn a valid code.
+        // 1. Find the live invite. Non-consuming: redeemed/expired/unknown
+        //    all collapse to invalid_code, and the guarded consume below
+        //    stays the sole authority on whether the code is spent.
+        const invite = await trx
+          .selectFrom('staff_invites')
+          .select(['id', 'business_id', 'role', 'email'])
+          .where('code_hash', '=', hashInviteCode(code))
+          .where('redeemed_at', 'is', null)
+          .where('expires_at', '>', new Date())
+          .executeTakeFirst();
+        if (!invite) {
+          return { outcome: 'invalid_code' };
+        }
+
+        // 2. The invite is a credential for one specific address. A
+        //    different signed-in account may not spend it -- and this must
+        //    not consume it, so a forwarded link stays valid for its true
+        //    recipient. `email` here is identity.email, already lowercased
+        //    by Supabase; normalize both sides anyway.
+        if (normalizeEmail(invite.email) !== normalizeEmail(email)) {
+          return { outcome: 'wrong_account' };
+        }
+
+        // 3. One identity, one active business (also the partial unique
+        //    index). Checked before consuming so a doomed redemption keeps
+        //    the invite live for a retry from the right account.
         const existingActive = await trx
           .selectFrom('staff')
           .select('id')
@@ -65,26 +138,26 @@ export function createKyselyStaffPort(db: Kysely<Database>): StaffPort {
           return { outcome: 'already_staff' };
         }
 
-        // The fraud-gate shape, same as confirmCheckin: this update only
-        // succeeds once per code, and only before it expires. Whether it
-        // returns a row is the single source of truth for whether
-        // redemption may proceed — a concurrent second redemption of the
-        // same code always finds redeemed_at already set and loses.
-        const invite = await trx
+        // 4. Consume, guarded. The fraud-gate shape, same as confirmCheckin:
+        //    whether this returns a row is the single source of truth for
+        //    whether redemption proceeds -- a concurrent second redemption
+        //    of the same code finds redeemed_at already set and loses.
+        const consumed = await trx
           .updateTable('staff_invites')
           .set({ redeemed_at: new Date() })
-          .where('code_hash', '=', hashInviteCode(code))
+          .where('id', '=', invite.id)
           .where('redeemed_at', 'is', null)
-          .where('expires_at', '>', new Date())
-          .returning(['id', 'business_id', 'role'])
+          .returning('id')
           .executeTakeFirst();
-        if (!invite) {
+        if (!consumed) {
           return { outcome: 'invalid_code' };
         }
 
-        // Reactivate a matching deactivated row at this business rather
-        // than inserting a second one — keeps this person's
-        // visits/redemptions.confirmed_by history on a single staff id.
+        // 5. Reactivate a matching deactivated row at this business rather
+        //    than inserting a second one -- keeps this person's
+        //    visits/redemptions.confirmed_by history on a single staff id.
+        //    Refresh the stored email too: the invite's address is now the
+        //    authoritative one for this person here.
         const deactivated = await trx
           .selectFrom('staff')
           .select('id')
@@ -97,7 +170,7 @@ export function createKyselyStaffPort(db: Kysely<Database>): StaffPort {
           ? (
               await trx
                 .updateTable('staff')
-                .set({ deactivated_at: null, deactivated_by: null, role: invite.role })
+                .set({ deactivated_at: null, deactivated_by: null, role: invite.role, email: invite.email })
                 .where('id', '=', deactivated.id)
                 .returning('id')
                 .executeTakeFirstOrThrow()
@@ -105,7 +178,7 @@ export function createKyselyStaffPort(db: Kysely<Database>): StaffPort {
           : (
               await trx
                 .insertInto('staff')
-                .values({ business_id: invite.business_id, email, role: invite.role, auth_user_id: authUserId })
+                .values({ business_id: invite.business_id, email: invite.email, role: invite.role, auth_user_id: authUserId })
                 .returning('id')
                 .executeTakeFirstOrThrow()
             ).id;
@@ -145,7 +218,7 @@ export function createKyselyStaffPort(db: Kysely<Database>): StaffPort {
 
       const inviteRows = await db
         .selectFrom('staff_invites')
-        .select(['id', 'role', 'created_at', 'expires_at'])
+        .select(['id', 'email', 'role', 'created_at', 'expires_at'])
         .where('business_id', '=', businessId)
         .where('redeemed_at', 'is', null)
         .where('expires_at', '>', new Date())
@@ -160,6 +233,7 @@ export function createKyselyStaffPort(db: Kysely<Database>): StaffPort {
       }));
       const pendingInvites: PendingInviteEntry[] = inviteRows.map((row) => ({
         id: row.id,
+        email: row.email,
         role: row.role,
         createdAt: new Date(row.created_at),
         expiresAt: new Date(row.expires_at),

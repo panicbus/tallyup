@@ -99,13 +99,25 @@ chicken-and-egg wait:
    browser-direct rather than through the api. Local development uses this
    same hosted bucket, exactly as local Auth uses the hosted Auth server.
 
+   **Also verify a sending domain in Resend** (one time): create a Resend
+   account, add your domain under Domains, and publish the DNS records it
+   gives you. Until that verifies, Resend only sends from
+   `onboarding@resend.dev` to your own account address. Then, still in the
+   Supabase dashboard, check **Authentication -> Providers -> Email**:
+   "Confirm email" must be **off** (it is, by default). With it on, a new
+   hire's inline sign-up returns no session, and the invite flow falls back
+   to a two-visit "confirm your email, then reopen the link" path.
+
 2. **Render** (api): New -> Blueprint, connect this repo — `render.yaml` at
-   the root defines the service. It'll prompt for four env vars:
-   `DATABASE_URL` (from step 1), `SUPABASE_URL`, `SUPABASE_ANON_KEY` (same
-   values as your local `.env`), and `CORS_ORIGIN` (leave as a placeholder
-   like `http://localhost:5173` for now — you'll fix it in step 4). Once
-   live, confirm `https://<your-service>.onrender.com/health` returns
-   `{"status":"ok"}`.
+   the root defines the service. It'll prompt for the env vars in
+   `render.yaml`: `DATABASE_URL` (from step 1), `SUPABASE_URL`,
+   `SUPABASE_ANON_KEY` (same values as your local `.env`), `CORS_ORIGIN`
+   (leave as a placeholder like `http://localhost:5173` for now — you'll
+   fix it in step 4), and `RESEND_API_KEY` / `RESEND_FROM` from the Resend
+   dashboard (`RESEND_FROM` is a full From header on your verified domain,
+   e.g. `TallyUp <invites@yourdomain.com>`). The api will not boot in
+   production without `RESEND_API_KEY`. Once live, confirm
+   `https://<your-service>.onrender.com/health` returns `{"status":"ok"}`.
 
 3. **Vercel** (web): New Project, import this repo, set **Root Directory**
    to `packages/web` (Vercel auto-detects the npm workspace and installs
@@ -123,7 +135,9 @@ chicken-and-egg wait:
    onboarding, open the resulting `/checkin/:slug` link in a second
    tab (or scan the QR code with a phone), submit a check-in, and confirm
    it from the dashboard tab — the full loop, on the actual deployed
-   infrastructure.
+   infrastructure. Then from Staff, invite a second address you control,
+   click the emailed link, sign up inline, and confirm you land on the
+   dashboard as staff.
 
 ## Status
 W7 (deploy) config complete: `render.yaml` (api) and `packages/web/vercel.json`

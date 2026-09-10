@@ -33,6 +33,20 @@ describe('LoginForm', () => {
     expect(screen.getByRole('button', { name: 'Create account' })).toBeTruthy();
   });
 
+  it('locks the email field to a given address and still submits it', async () => {
+    const onSubmit = vi.fn();
+    render(<LoginForm onSubmit={onSubmit} submitting={false} lockedEmail="sam@example.com" submitLabel="Join" />);
+
+    const emailField = screen.getByLabelText(/email/i);
+    expect(emailField).toHaveValue('sam@example.com');
+    expect(emailField).toHaveAttribute('readonly');
+
+    await userEvent.type(screen.getByLabelText('Password'), 'hunter2');
+    await userEvent.click(screen.getByRole('button', { name: 'Join' }));
+
+    expect(onSubmit).toHaveBeenCalledWith('sam@example.com', 'hunter2');
+  });
+
   it('toggles the password field between hidden and visible', async () => {
     render(<LoginForm onSubmit={() => {}} submitting={false} />);
     const passwordField = screen.getByLabelText('Password');

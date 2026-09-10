@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Check, ChevronDown, Copy, UserPlus, X } from 'lucide-react';
+import { ChevronDown, UserPlus, X } from 'lucide-react';
+import { normalizeEmail } from '@tallyup/shared';
 import { createInvite, deactivateStaffMember, getMe, getStaffRoster, revokeInvite } from '../lib/api';
-import type { CreatedInvite, MeResponse, StaffRole, StaffRosterResponse } from '../lib/api';
+import type { MeResponse, StaffRole, StaffRosterResponse } from '../lib/api';
 import { supabaseClient } from '../lib/supabase';
 import { StaffHeader } from '../components/StaffHeader';
 
@@ -15,10 +16,9 @@ export function StaffManagement() {
   const [inviteRole, setInviteRole] = useState<StaffRole>('staff');
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const roleMenuRef = useRef<HTMLDivElement>(null);
+  const [inviteEmail, setInviteEmail] = useState('');
   const [creatingInvite, setCreatingInvite] = useState(false);
-  const [newInvite, setNewInvite] = useState<CreatedInvite | null>(null);
-  const [newInviteRole, setNewInviteRole] = useState<StaffRole>('staff');
-  const [copied, setCopied] = useState(false);
+  const [inviteSentTo, setInviteSentTo] = useState<string | null>(null);
 
   useEffect(() => {
     getMe().then((result) => {
@@ -74,27 +74,24 @@ export function StaffManagement() {
   async function handleCreateInvite() {
     setCreatingInvite(true);
     setError(null);
-    setCopied(false);
+    setInviteSentTo(null);
     try {
-      const invite = await createInvite(slug, inviteRole);
-      setNewInvite(invite);
-      setNewInviteRole(inviteRole);
+      const result = await createInvite(slug, inviteEmail, inviteRole);
+      if (result.outcome === 'invalid_email') {
+        setError('Enter a valid email address.');
+        return;
+      }
+      if (result.outcome === 'email_failed') {
+        setError('Could not send that invitation. Check the address and try again.');
+        return;
+      }
+      setInviteSentTo(result.email);
+      setInviteEmail('');
       await refreshRoster();
     } catch {
       setError('Could not create an invite.');
     } finally {
       setCreatingInvite(false);
-    }
-  }
-
-  async function handleCopyCode() {
-    if (!newInvite) return;
-    try {
-      await navigator.clipboard.writeText(newInvite.code);
-      setCopied(true);
-    } catch {
-      // Clipboard access can fail (permissions, insecure context) — the
-      // code is still on screen to copy by hand, so this isn't fatal.
     }
   }
 
@@ -147,6 +144,13 @@ export function StaffManagement() {
     );
   }
 
+  // Cheap client-side guard against the "re-invite to change a role" trap,
+  // which the API rejects as already_staff with no promote path.
+  const typedEmail = normalizeEmail(inviteEmail);
+  const alreadyOnTeam =
+    typedEmail !== '' &&
+    (roster?.staff ?? []).some((s) => s.email && normalizeEmail(s.email) === typedEmail && s.deactivatedAt === null);
+
   return (
     <div className="page">
       <div className="app-shell" style={{ width: '100%', maxWidth: 'var(--page-max-width)' }}>
@@ -168,10 +172,21 @@ export function StaffManagement() {
           <h3 style={{ margin: 0 }}>Staff</h3>
 
           <p className="text-muted" style={{ margin: 0, fontSize: 13, maxWidth: 460 }}>
-            To add a teammate, generate a one-time invite code and send it to them. The role you pick is
-            what the code grants: <strong>staff</strong> can run check-ins and redemptions;{' '}
-            <strong>owners</strong> can also change settings, manage staff, and export customers.
+            Enter a teammate's email and we'll send them an invitation link. The role you pick is what
+            they get: <strong>staff</strong> can run check-ins and redemptions; <strong>owners</strong>{' '}
+            can also change settings, manage staff, and export customers.
           </p>
+
+          {inviteSentTo && (
+            <p style={{ margin: 0, fontSize: 13, color: 'var(--color-accent-700)' }}>
+              Invitation sent to {inviteSentTo}.
+            </p>
+          )}
+          {alreadyOnTeam && (
+            <p className="text-muted" style={{ margin: 0, fontSize: 13 }}>
+              {inviteEmail.trim()} is already on your team. Changing someone's role isn't supported yet.
+            </p>
+          )}
 
           <div
             style={{
@@ -184,6 +199,15 @@ export function StaffManagement() {
               borderRadius: 'var(--radius-md)',
             }}
           >
+            <input
+              type="email"
+              className="input"
+              placeholder="teammate@example.com"
+              aria-label="Teammate's email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              style={{ flex: '1 1 200px' }}
+            />
             <div className="dropdown" data-open={roleMenuOpen} ref={roleMenuRef}>
               <button
                 type="button"
@@ -206,10 +230,6 @@ export function StaffManagement() {
                       onClick={() => {
                         setInviteRole(role);
                         setRoleMenuOpen(false);
-                        // Changing the role invalidates the code on screen —
-                        // it's already been issued for the old role. Hide it;
-                        // "Invite" mints a fresh one.
-                        setNewInvite(null);
                       }}
                     >
                       {role === 'owner' ? 'Owner' : 'Staff'}
@@ -222,67 +242,12 @@ export function StaffManagement() {
               type="button"
               className="btn btn-primary"
               style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-              disabled={creatingInvite}
+              disabled={creatingInvite || inviteEmail.trim() === ''}
               onClick={handleCreateInvite}
             >
-              <UserPlus size={14} /> {creatingInvite ? 'Creating…' : 'Invite'}
+              <UserPlus size={14} /> {creatingInvite ? 'Sending…' : 'Send invitation'}
             </button>
           </div>
-
-          {newInvite && (
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 10,
-                padding: '14px 16px',
-                background: 'var(--color-accent-100)',
-                borderRadius: 'var(--radius-md)',
-              }}
-            >
-              <p style={{ margin: 0, fontSize: 13 }}>
-                Invite code for a new <strong>{newInviteRole === 'owner' ? 'owner' : 'staff member'}</strong>.
-                Copy it now (it won't be shown again).
-              </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                <code
-                  style={{
-                    fontFamily: 'ui-monospace, monospace',
-                    fontSize: 15,
-                    padding: '6px 10px',
-                    background: '#fff',
-                    borderRadius: 'var(--radius-sm)',
-                    wordBreak: 'break-all',
-                  }}
-                >
-                  {newInvite.code}
-                </code>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }}
-                  onClick={handleCopyCode}
-                >
-                  {copied ? <Check size={14} /> : <Copy size={14} />} {copied ? 'Copied' : 'Copy'}
-                </button>
-              </div>
-              <div style={{ fontSize: 13 }}>
-                Send it to them. To use it, they:
-                <ol style={{ margin: '4px 0 0', paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                  <li>
-                    Open <strong>{window.location.host}</strong> and create their own account
-                  </li>
-                  <li>
-                    Pick <strong>“Join with a code”</strong> and paste this in
-                  </li>
-                </ol>
-              </div>
-              <p className="text-muted" style={{ margin: 0, fontSize: 12 }}>
-                Works once, and expires{' '}
-                {new Date(newInvite.expiresAt).toLocaleDateString('en-US', { timeZone: 'UTC' })}.
-              </p>
-            </div>
-          )}
 
           {roster && (
             <ul style={{ margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -336,6 +301,7 @@ export function StaffManagement() {
                       borderRadius: 'var(--radius-md)',
                     }}
                   >
+                    <span style={{ fontSize: 14 }}>{invite.email}</span>
                     <span className="tag tag-neutral">{invite.role}</span>
                     <span className="text-muted" style={{ fontSize: 13 }}>
                       Expires {new Date(invite.expiresAt).toLocaleDateString('en-US', { timeZone: 'UTC' })}

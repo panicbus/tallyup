@@ -5,6 +5,7 @@ import { createDb } from '../data-access/db.js';
 import { createInMemoryCheckInPort } from '../test-support/in-memory-check-in-port.js';
 import { createInMemoryAuthPort } from '../test-support/in-memory-auth-port.js';
 import { createInMemoryStaffPort } from '../test-support/in-memory-staff-port.js';
+import { createInMemoryEmailPort } from '../test-support/in-memory-email-port.js';
 import { requireStaff } from './require-staff.js';
 import { requireOwner } from './require-owner.js';
 import type { AppDependencies } from '../app.js';
@@ -18,7 +19,14 @@ function buildProbe() {
   const { port: staffPort, addStaff } = createInMemoryStaffPort();
   // Never queried — Pool connections are lazy, so a bogus connection string is
   // fine for a dependency the guard never touches.
-  const deps: AppDependencies = { checkInPort, authPort, staffPort, db: createDb('postgres://unused') };
+  const deps: AppDependencies = {
+    checkInPort,
+    authPort,
+    staffPort,
+    emailPort: createInMemoryEmailPort().port,
+    db: createDb('postgres://unused'),
+    appUrl: 'http://test.local',
+  };
 
   const app: FastifyInstance = Fastify({ logger: false });
   app.get('/probe', { preHandler: [requireStaff(deps), requireOwner] }, async () => ({ reached: true }));

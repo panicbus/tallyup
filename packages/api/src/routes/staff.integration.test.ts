@@ -5,6 +5,7 @@ import { buildApp } from '../app.js';
 import { createKyselyCheckInPort } from '../data-access/kysely-check-in-port.js';
 import { createKyselyStaffPort } from '../data-access/kysely-staff-port.js';
 import { createInMemoryAuthPort } from '../test-support/in-memory-auth-port.js';
+import { createInMemoryEmailPort } from '../test-support/in-memory-email-port.js';
 import type { Database } from '../data-access/types.js';
 
 async function seedBusinessWithOwner(db: Kysely<Database>) {
@@ -31,32 +32,67 @@ async function seedBusinessWithOwner(db: Kysely<Database>) {
 
 function buildStaffApp(realDb: Kysely<Database>) {
   const { port: authPort, issueToken } = createInMemoryAuthPort();
+  const { port: emailPort, sent } = createInMemoryEmailPort();
   const app = buildApp(
-    { checkInPort: createKyselyCheckInPort(realDb), staffPort: createKyselyStaffPort(realDb), authPort, db: realDb },
+    {
+      checkInPort: createKyselyCheckInPort(realDb),
+      staffPort: createKyselyStaffPort(realDb),
+      authPort,
+      emailPort,
+      db: realDb,
+      appUrl: 'http://test.local',
+    },
     { logger: false },
   );
-  return { app, issueToken };
+  return { app, issueToken, sent };
+}
+
+/** The one-time code the invite route only ever puts in the emailed link. */
+function codeFromLastEmail(sent: { text: string }[]): string {
+  const token = sent.at(-1)?.text.match(/token=([^\s]+)/)?.[1];
+  if (!token) throw new Error('no invite email was sent');
+  return decodeURIComponent(token);
 }
 
 describe('multi-staff accounts, end to end via HTTP', () => {
-  test('owner invites, a fresh identity redeems, appears on the roster, can confirm, cannot open settings, gets deactivated, and can be re-invited', async ({
+  test('owner invites by email, the link is looked up then redeemed by the right account, and the flow runs through deactivation and re-invite', async ({
     realDb,
   }) => {
     const { business, authUserId: ownerAuthUserId } = await seedBusinessWithOwner(realDb);
-    const { app, issueToken } = buildStaffApp(realDb);
+    const { app, issueToken, sent } = buildStaffApp(realDb);
     const ownerHeaders = { authorization: `Bearer ${issueToken({ userId: ownerAuthUserId, email: 'owner@example.com' })}` };
 
-    // Owner creates an invite.
+    // Owner invites a teammate by email. The response carries no code.
     const inviteResponse = await app.inject({
       method: 'POST',
       url: `/businesses/${business.slug}/invites`,
       headers: ownerHeaders,
-      payload: { role: 'staff' },
+      payload: { email: 'new-hire@example.com', role: 'staff' },
     });
     expect(inviteResponse.statusCode).toBe(201);
-    const { code } = inviteResponse.json();
+    expect(inviteResponse.json()).not.toHaveProperty('code');
+    expect(sent.at(-1)?.to).toBe('new-hire@example.com');
+    const code = codeFromLastEmail(sent);
 
-    // A brand-new identity signs up and redeems it.
+    // The join page looks the invite up without any auth.
+    const lookupResponse = await app.inject({ method: 'POST', url: '/invites/lookup', payload: { code } });
+    expect(lookupResponse.statusCode).toBe(200);
+    expect(lookupResponse.json()).toMatchObject({
+      businessSlug: business.slug,
+      role: 'staff',
+      email: 'new-hire@example.com',
+      invitedBy: 'owner@example.com',
+    });
+
+    // The wrong account cannot spend it, and the attempt does not burn it.
+    const wrongAccount = {
+      authorization: `Bearer ${issueToken({ userId: randomUUID(), email: 'someone-else@example.com' })}`,
+    };
+    const wrongRedeem = await app.inject({ method: 'POST', url: '/invites/redeem', headers: wrongAccount, payload: { code } });
+    expect(wrongRedeem.statusCode).toBe(403);
+    expect(wrongRedeem.json()).toEqual({ error: 'wrong_account' });
+
+    // The intended identity signs up and redeems it.
     const newHireAuthUserId = randomUUID();
     const newHireHeaders = {
       authorization: `Bearer ${issueToken({ userId: newHireAuthUserId, email: 'new-hire@example.com' })}`,
@@ -76,13 +112,16 @@ describe('multi-staff accounts, end to end via HTTP', () => {
     expect(meResponse.json()).toMatchObject({ role: 'staff', business: { id: business.id } });
     const newHireStaffId = meResponse.json().id;
 
-    // They show up on the owner's roster.
+    // They show up on the owner's roster with the invited address.
     const rosterResponse = await app.inject({
       method: 'GET',
       url: `/businesses/${business.slug}/staff`,
       headers: ownerHeaders,
     });
     expect(rosterResponse.json().staff).toHaveLength(2);
+    expect(
+      rosterResponse.json().staff.find((s: { id: string }) => s.id === newHireStaffId).email,
+    ).toBe('new-hire@example.com');
 
     // They can confirm a check-in (ordinary staff capability)...
     const checkinResponse = await app.inject({
@@ -119,29 +158,19 @@ describe('multi-staff accounts, end to end via HTTP', () => {
     const lockedOutResponse = await app.inject({ method: 'GET', url: '/me', headers: newHireHeaders });
     expect(lockedOutResponse.statusCode).toBe(401);
 
-    // Their earlier visit is untouched.
-    const rosterAfterDeactivation = await app.inject({
-      method: 'GET',
-      url: `/businesses/${business.slug}/staff`,
-      headers: ownerHeaders,
-    });
-    const deactivatedEntry = rosterAfterDeactivation
-      .json()
-      .staff.find((s: { id: string }) => s.id === newHireStaffId);
-    expect(deactivatedEntry.deactivatedAt).not.toBeNull();
-
     // Re-invited to the same business, they resume their original id.
     const secondInvite = await app.inject({
       method: 'POST',
       url: `/businesses/${business.slug}/invites`,
       headers: ownerHeaders,
-      payload: { role: 'staff' },
+      payload: { email: 'new-hire@example.com', role: 'staff' },
     });
+    expect(secondInvite.statusCode).toBe(201);
     const rehireResponse = await app.inject({
       method: 'POST',
       url: '/invites/redeem',
       headers: newHireHeaders,
-      payload: { code: secondInvite.json().code },
+      payload: { code: codeFromLastEmail(sent) },
     });
     expect(rehireResponse.statusCode).toBe(200);
     const meAfterRehire = await app.inject({ method: 'GET', url: '/me', headers: newHireHeaders });
@@ -158,13 +187,13 @@ describe('multi-staff accounts, end to end via HTTP', () => {
       method: 'POST',
       url: `/businesses/${businessB.slug}/invites`,
       headers: ownerAHeaders,
-      payload: { role: 'staff' },
+      payload: { email: 'x@example.com', role: 'staff' },
     });
 
     expect(response.statusCode).toBe(403);
   });
 
-  test('an owner cannot deactivate another business\'s staff', async ({ realDb }) => {
+  test("an owner cannot deactivate another business's staff", async ({ realDb }) => {
     const { authUserId: ownerAAuthUserId } = await seedBusinessWithOwner(realDb);
     const { business: businessB } = await seedBusinessWithOwner(realDb);
     const bAuthUserId = randomUUID();

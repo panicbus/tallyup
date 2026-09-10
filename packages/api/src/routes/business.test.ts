@@ -5,6 +5,7 @@ import { createDb } from '../data-access/db.js';
 import { createInMemoryCheckInPort } from '../test-support/in-memory-check-in-port.js';
 import { createInMemoryAuthPort } from '../test-support/in-memory-auth-port.js';
 import { createInMemoryStaffPort } from '../test-support/in-memory-staff-port.js';
+import { createInMemoryEmailPort } from '../test-support/in-memory-email-port.js';
 import type { StaffRole } from '../data-access/types.js';
 
 /**
@@ -20,7 +21,7 @@ function buildTestApp() {
   const { port: staffPort, addStaff } = createInMemoryStaffPort();
   // Never queried by these tests — every branch here replies before the
   // handler reaches updateBusiness.
-  const app = buildApp({ checkInPort, authPort, staffPort, db: createDb('postgres://unused') }, { logger: false });
+  const app = buildApp({ checkInPort, authPort, staffPort, emailPort: createInMemoryEmailPort().port, db: createDb('postgres://unused'), appUrl: 'http://test.local' }, { logger: false });
 
   // Returns authUserId alongside the header because the logo-URL guard
   // checks the URL's folder against exactly that id.

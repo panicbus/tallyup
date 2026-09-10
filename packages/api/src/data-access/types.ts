@@ -107,6 +107,9 @@ export interface StaffInvitesTable {
   id: Generated<string>;
   business_id: string;
   code_hash: string;
+  /** The address the invite was emailed to, stored normalized. Redemption
+   * requires the signed-in account's email to match this (migration 0013). */
+  email: string;
   role: StaffRole;
   created_by: string;
   created_at: CreatedAt;

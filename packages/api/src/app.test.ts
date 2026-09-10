@@ -4,6 +4,7 @@ import { createDb } from './data-access/db.js';
 import { createInMemoryCheckInPort } from './test-support/in-memory-check-in-port.js';
 import { createInMemoryAuthPort } from './test-support/in-memory-auth-port.js';
 import { createInMemoryStaffPort } from './test-support/in-memory-staff-port.js';
+import { createInMemoryEmailPort } from './test-support/in-memory-email-port.js';
 
 describe('buildApp', () => {
   it('responds to GET /health with 200', async () => {
@@ -15,7 +16,9 @@ describe('buildApp', () => {
         checkInPort: port,
         authPort: createInMemoryAuthPort().port,
         staffPort: createInMemoryStaffPort().port,
+        emailPort: createInMemoryEmailPort().port,
         db: createDb('postgres://unused'),
+        appUrl: 'http://test.local',
       },
       { logger: false },
     );

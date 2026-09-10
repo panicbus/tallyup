@@ -5,14 +5,36 @@ export type { StaffContext };
 
 export interface CreatedInvite {
   id: string;
-  /** Plaintext, returned exactly once — only the hash is ever persisted. */
+  /** Plaintext, returned exactly once — only the hash is ever persisted.
+   * The route never forwards this to the client; it exists so the send
+   * service can build the join link. */
   code: string;
+  expiresAt: Date;
+}
+
+/** What the join page shows before anyone commits to redeeming — a
+ * non-consuming read of a live invite. Null (not an outcome) for unknown,
+ * expired, revoked, or already-redeemed, mirroring AuthPort.verifyToken:
+ * the page never needs to know which. */
+export interface InviteDescription {
+  businessName: string;
+  businessSlug: string;
+  /** Email of the staff member who sent the invite. */
+  invitedBy: string;
+  role: StaffRole;
+  /** The address the invite was sent to, normalized. The join page locks
+   * its signup field to this. */
+  email: string;
   expiresAt: Date;
 }
 
 export type RedeemInviteResult =
   | { outcome: 'redeemed'; businessId: string; role: StaffRole }
   | { outcome: 'invalid_code' }
+  // The signed-in account's email does not match the invited address. The
+  // invite is left untouched, so a forwarded link still works for its real
+  // recipient.
+  | { outcome: 'wrong_account' }
   | { outcome: 'already_staff' };
 
 export type RevokeInviteResult = { outcome: 'revoked' } | { outcome: 'not_found' };
@@ -26,6 +48,8 @@ export interface StaffListEntry {
 
 export interface PendingInviteEntry {
   id: string;
+  /** The address the invite was emailed to, normalized. */
+  email: string;
   role: StaffRole;
   createdAt: Date;
   expiresAt: Date;
@@ -56,14 +80,27 @@ export interface StaffPort {
    * route can 403 before acting on someone outside the caller's business.
    * Null if the staff row doesn't exist at all (404, not 403). */
   findStaffBusinessId(staffId: string): Promise<string | null>;
-  createInvite(input: { businessId: string; role: StaffRole; createdBy: string }): Promise<CreatedInvite>;
+  /**
+   * Mints an invite for one specific email address. The address is stored
+   * normalized and is what authorizes redemption later. Supersedes any
+   * still-live invite to the same address at the same business: only the
+   * hash is kept, so re-inviting is the only "resend", and a stale link
+   * must stop working the moment a fresh one is issued.
+   */
+  createInvite(input: { businessId: string; email: string; role: StaffRole; createdBy: string }): Promise<CreatedInvite>;
+  /** A non-consuming read of a live invite, for the join page's confirmation
+   * card. Null for unknown, expired, revoked, or already-redeemed. */
+  describeInvite(code: string): Promise<InviteDescription | null>;
   /**
    * Redeems a bearer invite code for an already-authenticated identity. One
-   * guarded transaction: rejects an identity that already has an active
-   * staff row anywhere, consumes the code exactly once (a concurrent second
-   * redemption of the same code always loses), and either reactivates a
-   * matching deactivated row at the invite's business or creates a fresh
-   * one — never both, never neither.
+   * guarded transaction, checks in a fixed order so a doomed attempt never
+   * burns the code: (1) the invite must be live, else `invalid_code`;
+   * (2) the identity's email must match the invited address, else
+   * `wrong_account`, nothing consumed; (3) the identity must not already be
+   * active staff anywhere, else `already_staff`, nothing consumed; then it
+   * consumes the code exactly once (a concurrent second redemption always
+   * loses) and either reactivates a matching deactivated row at the
+   * invite's business or creates a fresh one — never both, never neither.
    */
   redeemInvite(input: { code: string; authUserId: string; email: string }): Promise<RedeemInviteResult>;
   /**

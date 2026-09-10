@@ -6,13 +6,14 @@ import { createDb } from '../data-access/db.js';
 import { createInMemoryCheckInPort } from '../test-support/in-memory-check-in-port.js';
 import { createInMemoryAuthPort } from '../test-support/in-memory-auth-port.js';
 import { createInMemoryStaffPort } from '../test-support/in-memory-staff-port.js';
+import { createInMemoryEmailPort } from '../test-support/in-memory-email-port.js';
 
 function buildTestApp(checkInPort: CheckInPort) {
   const { port: authPort, issueToken } = createInMemoryAuthPort();
   const { port: staffPort, addStaff } = createInMemoryStaffPort();
   // Never queried by these tests — Pool connections are lazy, so a bogus
   // connection string is fine for a dependency none of them exercise.
-  const app = buildApp({ checkInPort, authPort, staffPort, db: createDb('postgres://unused') }, { logger: false });
+  const app = buildApp({ checkInPort, authPort, staffPort, emailPort: createInMemoryEmailPort().port, db: createDb('postgres://unused'), appUrl: 'http://test.local' }, { logger: false });
 
   function loginAsStaffOf(businessId: string) {
     const authUserId = randomUUID();

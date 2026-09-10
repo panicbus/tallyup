@@ -5,13 +5,18 @@ import { createDb } from '../data-access/db.js';
 import { createInMemoryCheckInPort } from '../test-support/in-memory-check-in-port.js';
 import { createInMemoryAuthPort } from '../test-support/in-memory-auth-port.js';
 import { createInMemoryStaffPort } from '../test-support/in-memory-staff-port.js';
+import { createInMemoryEmailPort } from '../test-support/in-memory-email-port.js';
 import type { StaffRole } from '../data-access/types.js';
 
 function buildTestApp() {
   const { port: checkInPort, seedBusiness } = createInMemoryCheckInPort();
   const { port: authPort, issueToken } = createInMemoryAuthPort();
   const { port: staffPort, addStaff } = createInMemoryStaffPort();
-  const app = buildApp({ checkInPort, authPort, staffPort, db: createDb('postgres://unused') }, { logger: false });
+  const { port: emailPort, sent, failNextSend } = createInMemoryEmailPort();
+  const app = buildApp(
+    { checkInPort, authPort, staffPort, emailPort, db: createDb('postgres://unused'), appUrl: 'http://test.local' },
+    { logger: false },
+  );
 
   function loginAsStaffOf(businessId: string, role: StaffRole = 'owner') {
     const authUserId = randomUUID();
@@ -19,6 +24,7 @@ function buildTestApp() {
     return {
       authUserId,
       staffId: staff.id,
+      email: staff.email,
       headers: { authorization: `Bearer ${issueToken({ userId: authUserId, email: staff.email })}` },
     };
   }
@@ -29,23 +35,45 @@ function buildTestApp() {
     return { authUserId, email, headers: { authorization: `Bearer ${issueToken({ userId: authUserId, email })}` } };
   }
 
-  return { app, staffPort, seedBusiness, loginAsStaffOf, loginAsFreshIdentity };
+  /** Sends an invite through the route, then digs the one-time code back out
+   * of the email the route sent (the response no longer carries it). */
+  async function inviteViaApi(
+    headers: Record<string, string>,
+    input: { slug?: string; email: string; role?: StaffRole } = { email: 'invitee@example.com' },
+  ) {
+    const res = await app.inject({
+      method: 'POST',
+      url: `/businesses/${input.slug ?? 'test-shop'}/invites`,
+      headers,
+      payload: { email: input.email, role: input.role ?? 'staff' },
+    });
+    const body = res.json() as { id: string; email: string };
+    const code = sent.at(-1)?.text.match(/token=([^\s]+)/)?.[1];
+    return { statusCode: res.statusCode, id: body.id, email: body.email, code: code ? decodeURIComponent(code) : undefined };
+  }
+
+  return { app, staffPort, sent, failNextSend, seedBusiness, loginAsStaffOf, loginAsFreshIdentity, inviteViaApi };
 }
 
 describe('POST /businesses/:slug/invites', () => {
-  it('creates an invite for the owner, returning the plaintext code once', async () => {
-    const { app, seedBusiness, loginAsStaffOf } = buildTestApp();
+  it('creates an invite and emails a join link to the invited address, without returning the code', async () => {
+    const { app, sent, seedBusiness, loginAsStaffOf } = buildTestApp();
     const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
 
     const response = await app.inject({
       method: 'POST',
       url: '/businesses/test-shop/invites',
       headers: loginAsStaffOf(business.id).headers,
-      payload: { role: 'staff' },
+      payload: { email: 'New.Hire@example.com', role: 'staff' },
     });
 
     expect(response.statusCode).toBe(201);
-    expect(response.json()).toHaveProperty('code');
+    const body = response.json();
+    expect(body).not.toHaveProperty('code');
+    expect(body).toMatchObject({ email: 'new.hire@example.com' });
+    expect(sent).toHaveLength(1);
+    expect(sent[0]?.to).toBe('new.hire@example.com');
+    expect(sent[0]?.text).toContain('http://test.local/join?token=');
   });
 
   it('403s for a non-owner staff member', async () => {
@@ -56,7 +84,7 @@ describe('POST /businesses/:slug/invites', () => {
       method: 'POST',
       url: '/businesses/test-shop/invites',
       headers: loginAsStaffOf(business.id, 'staff').headers,
-      payload: { role: 'staff' },
+      payload: { email: 'x@example.com', role: 'staff' },
     });
 
     expect(response.statusCode).toBe(403);
@@ -69,7 +97,7 @@ describe('POST /businesses/:slug/invites', () => {
     const response = await app.inject({
       method: 'POST',
       url: '/businesses/test-shop/invites',
-      payload: { role: 'staff' },
+      payload: { email: 'x@example.com', role: 'staff' },
     });
 
     expect(response.statusCode).toBe(401);
@@ -83,19 +111,127 @@ describe('POST /businesses/:slug/invites', () => {
       method: 'POST',
       url: '/businesses/test-shop/invites',
       headers: loginAsStaffOf(business.id).headers,
-      payload: { role: 'superadmin' },
+      payload: { email: 'x@example.com', role: 'superadmin' },
     });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('400s for a missing or malformed email', async () => {
+    const { app, seedBusiness, loginAsStaffOf } = buildTestApp();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const { headers } = loginAsStaffOf(business.id);
+
+    const missing = await app.inject({ method: 'POST', url: '/businesses/test-shop/invites', headers, payload: { role: 'staff' } });
+    const malformed = await app.inject({
+      method: 'POST',
+      url: '/businesses/test-shop/invites',
+      headers,
+      payload: { email: 'not-an-email', role: 'staff' },
+    });
+
+    expect(missing.statusCode).toBe(400);
+    expect(malformed.statusCode).toBe(400);
+  });
+
+  it('502s with email_failed when the invitation cannot be sent', async () => {
+    const { app, sent, failNextSend, seedBusiness, loginAsStaffOf } = buildTestApp();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    failNextSend('provider down');
+
+    const response = await app.inject({
+      method: 'POST',
+      url: '/businesses/test-shop/invites',
+      headers: loginAsStaffOf(business.id).headers,
+      payload: { email: 'x@example.com', role: 'staff' },
+    });
+
+    expect(response.statusCode).toBe(502);
+    expect(response.json()).toEqual({ error: 'email_failed' });
+    // The compensating revoke means nothing is left pending.
+    const roster = await app.inject({
+      method: 'GET',
+      url: '/businesses/test-shop/staff',
+      headers: loginAsStaffOf(business.id).headers,
+    });
+    expect(roster.json().pendingInvites).toEqual([]);
+    expect(sent).toHaveLength(0);
+  });
+
+  it('rate limits repeated invite sends from one caller', async () => {
+    const { app, seedBusiness, loginAsStaffOf } = buildTestApp();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const { headers } = loginAsStaffOf(business.id);
+
+    const codes: number[] = [];
+    for (let i = 0; i < 7; i++) {
+      const res = await app.inject({
+        method: 'POST',
+        url: '/businesses/test-shop/invites',
+        headers,
+        payload: { email: `hire-${i}@example.com`, role: 'staff' },
+      });
+      codes.push(res.statusCode);
+    }
+
+    expect(codes).toContain(429);
+  });
+});
+
+describe('POST /invites/lookup', () => {
+  it('describes a live invite: shop, slug, inviter, role, invited email', async () => {
+    const { app, seedBusiness, loginAsStaffOf, inviteViaApi } = buildTestApp();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const owner = loginAsStaffOf(business.id);
+    const invite = await inviteViaApi(owner.headers, { email: 'invitee@example.com', role: 'owner' });
+
+    const response = await app.inject({ method: 'POST', url: '/invites/lookup', payload: { code: invite.code } });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      role: 'owner',
+      email: 'invitee@example.com',
+      invitedBy: owner.email,
+    });
+    expect(response.json()).toHaveProperty('businessName');
+    expect(response.json()).toHaveProperty('businessSlug');
+    expect(response.headers['cache-control']).toContain('no-store');
+  });
+
+  it('404s for an unknown code', async () => {
+    const { app } = buildTestApp();
+
+    const response = await app.inject({ method: 'POST', url: '/invites/lookup', payload: { code: 'not-a-real-code' } });
+
+    expect(response.statusCode).toBe(404);
+    expect(response.json()).toEqual({ error: 'invalid_code' });
+  });
+
+  it('needs no Authorization header', async () => {
+    const { app, seedBusiness, loginAsStaffOf, inviteViaApi } = buildTestApp();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const invite = await inviteViaApi(loginAsStaffOf(business.id).headers, { email: 'invitee@example.com' });
+
+    const response = await app.inject({ method: 'POST', url: '/invites/lookup', payload: { code: invite.code } });
+
+    expect(response.statusCode).toBe(200);
+  });
+
+  it('400s for a missing code', async () => {
+    const { app } = buildTestApp();
+
+    const response = await app.inject({ method: 'POST', url: '/invites/lookup', payload: {} });
 
     expect(response.statusCode).toBe(400);
   });
 });
 
 describe('GET /businesses/:slug/staff', () => {
-  it('shows the owner emails and pending invites', async () => {
-    const { app, seedBusiness, loginAsStaffOf } = buildTestApp();
+  it('shows the owner emails and pending invites, with the invited address', async () => {
+    const { app, seedBusiness, loginAsStaffOf, inviteViaApi } = buildTestApp();
     const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
     const { headers } = loginAsStaffOf(business.id);
-    await app.inject({ method: 'POST', url: '/businesses/test-shop/invites', headers, payload: { role: 'staff' } });
+    await inviteViaApi(headers, { email: 'pending@example.com' });
 
     const response = await app.inject({ method: 'GET', url: '/businesses/test-shop/staff', headers });
 
@@ -103,18 +239,14 @@ describe('GET /businesses/:slug/staff', () => {
     const body = response.json();
     expect(body.staff[0]).toHaveProperty('email');
     expect(body.pendingInvites).toHaveLength(1);
+    expect(body.pendingInvites[0].email).toBe('pending@example.com');
   });
 
   it('hides emails and pending invites from a non-owner staff member', async () => {
-    const { app, seedBusiness, loginAsStaffOf } = buildTestApp();
+    const { app, seedBusiness, loginAsStaffOf, inviteViaApi } = buildTestApp();
     const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
     const owner = loginAsStaffOf(business.id);
-    await app.inject({
-      method: 'POST',
-      url: '/businesses/test-shop/invites',
-      headers: owner.headers,
-      payload: { role: 'staff' },
-    });
+    await inviteViaApi(owner.headers, { email: 'pending@example.com' });
     const staffMember = loginAsStaffOf(business.id, 'staff');
 
     const response = await app.inject({ method: 'GET', url: '/businesses/test-shop/staff', headers: staffMember.headers });
@@ -220,21 +352,12 @@ describe('POST /staff/:id/deactivate', () => {
 });
 
 describe('POST /invites/:id/revoke', () => {
-  async function createInvite(app: ReturnType<typeof buildTestApp>['app'], headers: Record<string, string>) {
-    const res = await app.inject({
-      method: 'POST',
-      url: '/businesses/test-shop/invites',
-      headers,
-      payload: { role: 'staff' },
-    });
-    return res.json() as { id: string; code: string };
-  }
-
   it('lets the owner revoke a pending invite, and the code is then dead', async () => {
-    const { app, seedBusiness, loginAsStaffOf, loginAsFreshIdentity } = buildTestApp();
+    const { app, seedBusiness, loginAsStaffOf, loginAsFreshIdentity, inviteViaApi } = buildTestApp();
     const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
     const owner = loginAsStaffOf(business.id);
-    const invite = await createInvite(app, owner.headers);
+    const newHire = loginAsFreshIdentity();
+    const invite = await inviteViaApi(owner.headers, { email: newHire.email });
 
     const revoke = await app.inject({ method: 'POST', url: `/invites/${invite.id}/revoke`, headers: owner.headers });
     expect(revoke.statusCode).toBe(200);
@@ -242,7 +365,7 @@ describe('POST /invites/:id/revoke', () => {
     const redeem = await app.inject({
       method: 'POST',
       url: '/invites/redeem',
-      headers: loginAsFreshIdentity().headers,
+      headers: newHire.headers,
       payload: { code: invite.code },
     });
     expect(redeem.statusCode).toBe(400);
@@ -252,9 +375,9 @@ describe('POST /invites/:id/revoke', () => {
   });
 
   it('403s for a non-owner staff member', async () => {
-    const { app, seedBusiness, loginAsStaffOf } = buildTestApp();
+    const { app, seedBusiness, loginAsStaffOf, inviteViaApi } = buildTestApp();
     const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
-    const invite = await createInvite(app, loginAsStaffOf(business.id).headers);
+    const invite = await inviteViaApi(loginAsStaffOf(business.id).headers, { email: 'x@example.com' });
 
     const response = await app.inject({
       method: 'POST',
@@ -266,10 +389,10 @@ describe('POST /invites/:id/revoke', () => {
   });
 
   it("404s an owner trying to revoke another business's invite", async () => {
-    const { app, seedBusiness, loginAsStaffOf } = buildTestApp();
+    const { app, seedBusiness, loginAsStaffOf, inviteViaApi } = buildTestApp();
     const businessA = await seedBusiness({ slug: 'shop-a', rewardThreshold: 10 });
     const businessB = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
-    const inviteB = await createInvite(app, loginAsStaffOf(businessB.id).headers);
+    const inviteB = await inviteViaApi(loginAsStaffOf(businessB.id).headers, { email: 'x@example.com' });
 
     const response = await app.inject({
       method: 'POST',
@@ -303,37 +426,57 @@ describe('POST /invites/:id/revoke', () => {
 });
 
 describe('POST /invites/redeem', () => {
-  it('redeems a valid code for a freshly authenticated identity', async () => {
-    const { app, seedBusiness, loginAsStaffOf, loginAsFreshIdentity } = buildTestApp();
+  it('redeems a valid code for a fresh identity whose email matches the invited address', async () => {
+    const { app, seedBusiness, loginAsStaffOf, loginAsFreshIdentity, inviteViaApi } = buildTestApp();
     const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
     const owner = loginAsStaffOf(business.id);
-    const createResponse = await app.inject({
-      method: 'POST',
-      url: '/businesses/test-shop/invites',
-      headers: owner.headers,
-      payload: { role: 'staff' },
-    });
-    const { code } = createResponse.json();
     const newHire = loginAsFreshIdentity();
+    const invite = await inviteViaApi(owner.headers, { email: newHire.email, role: 'staff' });
 
     const response = await app.inject({
       method: 'POST',
       url: '/invites/redeem',
       headers: newHire.headers,
-      payload: { code },
+      payload: { code: invite.code },
     });
 
     expect(response.statusCode).toBe(200);
   });
 
+  it('403s with wrong_account when the signed-in email differs, and the invite stays redeemable', async () => {
+    const { app, seedBusiness, loginAsStaffOf, loginAsFreshIdentity, inviteViaApi } = buildTestApp();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const owner = loginAsStaffOf(business.id);
+    const invite = await inviteViaApi(owner.headers, { email: 'intended@example.com', role: 'staff' });
+
+    const wrong = await app.inject({
+      method: 'POST',
+      url: '/invites/redeem',
+      headers: loginAsFreshIdentity().headers,
+      payload: { code: invite.code },
+    });
+    expect(wrong.statusCode).toBe(403);
+    expect(wrong.json()).toEqual({ error: 'wrong_account' });
+
+    const intended = loginAsFreshIdentity();
+    // Reissue with the intended address matching this identity.
+    const forThem = await inviteViaApi(owner.headers, { email: intended.email, role: 'staff' });
+    const ok = await app.inject({
+      method: 'POST',
+      url: '/invites/redeem',
+      headers: intended.headers,
+      payload: { code: forThem.code },
+    });
+    expect(ok.statusCode).toBe(200);
+  });
+
   it('400s for an invalid code', async () => {
     const { app, loginAsFreshIdentity } = buildTestApp();
-    const newHire = loginAsFreshIdentity();
 
     const response = await app.inject({
       method: 'POST',
       url: '/invites/redeem',
-      headers: newHire.headers,
+      headers: loginAsFreshIdentity().headers,
       payload: { code: 'not-a-real-code' },
     });
 
@@ -341,22 +484,16 @@ describe('POST /invites/redeem', () => {
   });
 
   it('409s for an identity that already has an active staff row', async () => {
-    const { app, seedBusiness, loginAsStaffOf } = buildTestApp();
+    const { app, seedBusiness, loginAsStaffOf, inviteViaApi } = buildTestApp();
     const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
     const owner = loginAsStaffOf(business.id);
-    const createResponse = await app.inject({
-      method: 'POST',
-      url: '/businesses/test-shop/invites',
-      headers: owner.headers,
-      payload: { role: 'staff' },
-    });
-    const { code } = createResponse.json();
+    const invite = await inviteViaApi(owner.headers, { email: owner.email, role: 'staff' });
 
     const response = await app.inject({
       method: 'POST',
       url: '/invites/redeem',
       headers: owner.headers,
-      payload: { code },
+      payload: { code: invite.code },
     });
 
     expect(response.statusCode).toBe(409);

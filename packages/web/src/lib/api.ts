@@ -252,6 +252,8 @@ export interface StaffRosterEntry {
 
 export interface PendingInvite {
   id: string;
+  /** The address the invite was emailed to. */
+  email: string;
   role: StaffRole;
   createdAt: string;
   expiresAt: string;
@@ -269,19 +271,48 @@ export async function getStaffRoster(slug: string): Promise<StaffRosterResponse>
   return response.json();
 }
 
-export interface CreatedInvite {
-  id: string;
-  code: string;
-  expiresAt: string;
-}
+export type CreateInviteResponse =
+  | { outcome: 'sent'; id: string; email: string; expiresAt: string }
+  // The address failed validation server-side (the form guards this first).
+  | { outcome: 'invalid_email' }
+  // The invite was created then rolled back because the email could not be
+  // sent. Nothing is left pending.
+  | { outcome: 'email_failed' };
 
-export async function createInvite(slug: string, role: StaffRole): Promise<CreatedInvite> {
+export async function createInvite(slug: string, email: string, role: StaffRole): Promise<CreateInviteResponse> {
   const response = await fetch(`${API_URL}/businesses/${slug}/invites`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
-    body: JSON.stringify({ role }),
+    body: JSON.stringify({ email, role }),
   });
+  if (response.status === 400) return { outcome: 'invalid_email' };
+  if (response.status === 502) return { outcome: 'email_failed' };
   if (!response.ok) throw new Error(`Failed to create invite (${response.status})`);
+  return { outcome: 'sent', ...(await response.json()) };
+}
+
+export interface InviteDescription {
+  businessName: string;
+  businessSlug: string;
+  /** Email of the staff member who sent the invite. */
+  invitedBy: string;
+  role: StaffRole;
+  /** The address the invite was sent to. The join page locks its signup
+   * field to this. */
+  email: string;
+  expiresAt: string;
+}
+
+/** Unauthenticated: the invitee has no account yet. Null for an unknown,
+ * expired, revoked, or already-redeemed code. */
+export async function lookupInvite(code: string): Promise<InviteDescription | null> {
+  const response = await fetch(`${API_URL}/invites/lookup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code }),
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error(`Failed to look up invite (${response.status})`);
   return response.json();
 }
 
@@ -312,6 +343,8 @@ export async function deactivateStaffMember(staffId: string): Promise<Deactivate
 export type RedeemInviteResponse =
   | { outcome: 'redeemed'; businessId: string; role: StaffRole }
   | { outcome: 'invalid_code' }
+  // The signed-in account's email does not match the invited address.
+  | { outcome: 'wrong_account' }
   | { outcome: 'already_staff' };
 
 export async function redeemInvite(code: string): Promise<RedeemInviteResponse> {
@@ -321,6 +354,7 @@ export async function redeemInvite(code: string): Promise<RedeemInviteResponse> 
     body: JSON.stringify({ code }),
   });
   if (response.status === 400) return { outcome: 'invalid_code' };
+  if (response.status === 403) return { outcome: 'wrong_account' };
   if (response.status === 409) return { outcome: 'already_staff' };
   if (!response.ok) throw new Error(`Failed to redeem invite (${response.status})`);
   return response.json();

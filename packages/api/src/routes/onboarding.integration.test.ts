@@ -6,12 +6,13 @@ import { buildApp } from '../app.js';
 import { createKyselyCheckInPort } from '../data-access/kysely-check-in-port.js';
 import { createKyselyStaffPort } from '../data-access/kysely-staff-port.js';
 import { createInMemoryAuthPort } from '../test-support/in-memory-auth-port.js';
+import { createInMemoryEmailPort } from '../test-support/in-memory-email-port.js';
 import type { Database } from '../data-access/types.js';
 
 function buildOnboardingApp(realDb: Kysely<Database>) {
   const { port: authPort, issueToken } = createInMemoryAuthPort();
   const app = buildApp(
-    { checkInPort: createKyselyCheckInPort(realDb), staffPort: createKyselyStaffPort(realDb), authPort, db: realDb },
+    { checkInPort: createKyselyCheckInPort(realDb), staffPort: createKyselyStaffPort(realDb), authPort, emailPort: createInMemoryEmailPort().port, db: realDb, appUrl: 'http://test.local' },
     { logger: false },
   );
   return { app, issueToken };

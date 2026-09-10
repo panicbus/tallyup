@@ -7,6 +7,7 @@ import { Signup } from './pages/Signup';
 import { ForgotPassword } from './pages/ForgotPassword';
 import { ResetPassword } from './pages/ResetPassword';
 import { Onboarding } from './pages/Onboarding';
+import { Join } from './pages/Join';
 import { Settings } from './pages/Settings';
 import { Customers } from './pages/Customers';
 import { StaffManagement } from './pages/StaffManagement';
@@ -23,6 +24,7 @@ export default function App() {
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
         <Route path="/onboarding" element={<Onboarding />} />
+        <Route path="/join" element={<Join />} />
         <Route path="/dashboard/:slug" element={<Dashboard />} />
         <Route path="/dashboard/:slug/customers" element={<Customers />} />
         <Route path="/dashboard/:slug/settings" element={<Settings />} />

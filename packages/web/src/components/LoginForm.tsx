@@ -6,10 +6,14 @@ interface LoginFormProps {
   submitting: boolean;
   error?: string;
   submitLabel?: string;
+  /** Pins the email field to this address (read-only) — used on the join
+   * page, where the invite dictates which account is being created or
+   * signed into. */
+  lockedEmail?: string;
 }
 
-export function LoginForm({ onSubmit, submitting, error, submitLabel = 'Sign in' }: LoginFormProps) {
-  const [email, setEmail] = useState('');
+export function LoginForm({ onSubmit, submitting, error, submitLabel = 'Sign in', lockedEmail }: LoginFormProps) {
+  const [email, setEmail] = useState(lockedEmail ?? '');
   const [password, setPassword] = useState('');
   const [passwordVisible, setPasswordVisible] = useState(false);
 
@@ -29,6 +33,7 @@ export function LoginForm({ onSubmit, submitting, error, submitLabel = 'Sign in'
           placeholder="you@yourshop.com"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          readOnly={lockedEmail !== undefined}
           required
         />
       </div>

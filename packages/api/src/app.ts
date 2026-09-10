@@ -5,6 +5,7 @@ import type { Kysely } from 'kysely';
 import { registerRoutes } from './routes/index.js';
 import type { CheckInPort } from './data-access/check-in-port.js';
 import type { AuthPort } from './data-access/auth-port.js';
+import type { EmailPort } from './data-access/email-port.js';
 import type { StaffPort } from './data-access/staff-port.js';
 import type { Database } from './data-access/types.js';
 
@@ -12,10 +13,17 @@ export interface AppDependencies {
   checkInPort: CheckInPort;
   authPort: AuthPort;
   staffPort: StaffPort;
+  /** Outbound transactional email (staff invitations). Fake in tests. */
+  emailPort: EmailPort;
   /** Raw connection, for writes simple enough not to need the port/fake
    * treatment (e.g. onboarding/editing a business) — see
    * data-access/onboarding.ts and data-access/update-business.ts. */
   db: Kysely<Database>;
+  /** Public origin of the web app, for building links that land in emails
+   * (the invite join link). A value, not a port: nothing calls it. Defaults
+   * to CORS_ORIGIN in main.ts, since they are the same URL in every
+   * deployment. */
+  appUrl: string;
 }
 
 export function buildApp(deps: AppDependencies, opts: FastifyServerOptions = {}): FastifyInstance {

@@ -22,8 +22,25 @@ to Customers on the check-in page and punch card, it is publicly readable.
 
 A person who works at one Business and signs in (Supabase Auth) to confirm
 check-ins and redemptions. Linked to their login by `staff.auth_user_id`. The
-`role` column is stored (`'owner'` for whoever onboards the Business) but
-nothing branches on it yet.
+`role` column is `'staff'` or `'owner'` (`'owner'` for whoever onboards the
+Business); owners can additionally change settings, manage Staff, and export
+Customers. One account is active Staff at exactly one Business at a time,
+enforced by a partial unique index on `staff.auth_user_id`. Removal is a soft
+delete (`deactivated_at`), because a Staff member who ever confirmed anything
+is referenced by Visit and Redemption rows.
+
+## Invitation
+
+How a new Staff member is added. An owner enters an email address and a
+`role`; the API mints a single-use, 7-day, email-locked code (only its hash
+is stored), emails a join link, and never returns the code. The recipient
+opens the link, signs up or in with that exact address, and confirms; the
+code is then consumed and a Staff row created (or a deactivated one at that
+Business reactivated). Redeeming from an account whose email differs is
+`wrong_account` and does **not** consume the code. Re-inviting the same
+address supersedes the earlier invite. There is no "resend" beyond
+re-inviting, and no way to change an existing Staff member's role. See
+[ADR-0003](docs/adr/0003-email-invitations-via-resend.md).
 
 ## Customer
 

@@ -9,13 +9,15 @@ services:
     envVars:
       - key: NODE_VERSION
         value: 22.12.0
-      # All four below are set manually in the Render dashboard after
+      # All of these are set manually in the Render dashboard after
       # creating the service — see README.md "Deploying" for where each
       # value comes from. DATABASE_URL is the production Supabase
       # project's Postgres connection string; SUPABASE_URL/ANON_KEY are
       # that same project's Auth API keys; CORS_ORIGIN is the deployed
-      # Vercel URL. SUPABASE_SERVICE_ROLE_KEY is deliberately not listed
-      # here — only the local seed script uses it, never the running app.
+      # Vercel URL. RESEND_API_KEY / RESEND_FROM send the staff-invitation
+      # emails; without the key the api refuses to boot in production.
+      # SUPABASE_SERVICE_ROLE_KEY is deliberately not listed here — only
+      # the local seed script uses it, never the running app.
       - key: DATABASE_URL
         sync: false
       - key: SUPABASE_URL
@@ -23,4 +25,8 @@ services:
       - key: SUPABASE_ANON_KEY
         sync: false
       - key: CORS_ORIGIN
+        sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM
         sync: false

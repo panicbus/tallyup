@@ -13,26 +13,27 @@ async function seedBusiness(db: Kysely<Database>) {
       reward_threshold: 10,
       reward_description: 'Free item',
     })
-    .returning('id')
+    .returning(['id', 'name', 'slug'])
     .executeTakeFirstOrThrow();
-  return { id: business.id };
+  return { id: business.id, name: business.name, slug: business.slug };
 }
 
 async function seedStaff(
   db: Kysely<Database>,
   input: { businessId: string; authUserId: string; role?: StaffRole },
 ) {
+  const email = `staff-${crypto.randomUUID()}@example.com`;
   const staff = await db
     .insertInto('staff')
     .values({
       business_id: input.businessId,
-      email: `staff-${crypto.randomUUID()}@example.com`,
+      email,
       role: input.role ?? 'owner',
       auth_user_id: input.authUserId,
     })
     .returning('id')
     .executeTakeFirstOrThrow();
-  return { id: staff.id };
+  return { id: staff.id, email };
 }
 
 runStaffPortContractTests(test, async ({ realDb }: { realDb: Kysely<Database> }) => ({
