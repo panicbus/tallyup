@@ -74,6 +74,7 @@ describe('CheckInForm', () => {
   it('disables the button while submitting', () => {
     render(<CheckInForm onSubmit={() => {}} submitting={true} businessName="Test Shop" />);
 
-    expect(screen.getByRole('button', { name: /check in/i })).toBeDisabled();
+    // The label switches to "Checking in…" while submitting.
+    expect(screen.getByRole('button', { name: /check(ing)? in/i })).toBeDisabled();
   });
 });

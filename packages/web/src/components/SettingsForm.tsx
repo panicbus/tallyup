@@ -59,12 +59,12 @@ export function SettingsForm({ business, onSubmit, submitting, saved, error }: S
         </div>
 
         <div className="field">
-          <label htmlFor="settings-punches-needed" style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-            Punches needed
-            <InfoTip label="About punches needed">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+            <label htmlFor="settings-punches-needed">Punches needed</label>
+            <InfoTip label="Why this matters">
               Lowering this can make customers who are already partway there instantly eligible for a reward.
             </InfoTip>
-          </label>
+          </div>
           <input
             id="settings-punches-needed"
             className="input"

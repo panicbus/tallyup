@@ -54,7 +54,7 @@ export function StaffHeader({ slug, businessName, logoUrl, onSignOut, showStaffT
       </div>
       <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700 }}>{businessName}</div>
 
-      <div className="nav-tabs">
+      <nav className="nav-tabs" aria-label="Primary">
         {tabs.map((tab) => (
           <Link
             key={tab.href}
@@ -65,7 +65,7 @@ export function StaffHeader({ slug, businessName, logoUrl, onSignOut, showStaffT
             {tab.label}
           </Link>
         ))}
-      </div>
+      </nav>
 
       <div className="text-muted staff-signed-in-mobile" style={{ marginLeft: 'auto', fontSize: 12 }}>
         Staff · signed in

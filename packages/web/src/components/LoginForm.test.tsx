@@ -9,7 +9,7 @@ describe('LoginForm', () => {
     render(<LoginForm onSubmit={onSubmit} submitting={false} />);
 
     await userEvent.type(screen.getByLabelText(/email/i), 'owner@example.com');
-    await userEvent.type(screen.getByLabelText(/password/i), 'hunter2');
+    await userEvent.type(screen.getByLabelText('Password'), 'hunter2');
     await userEvent.click(screen.getByRole('button', { name: /sign in/i }));
 
     expect(onSubmit).toHaveBeenCalledWith('owner@example.com', 'hunter2');
@@ -35,7 +35,7 @@ describe('LoginForm', () => {
 
   it('toggles the password field between hidden and visible', async () => {
     render(<LoginForm onSubmit={() => {}} submitting={false} />);
-    const passwordField = screen.getByLabelText(/password/i);
+    const passwordField = screen.getByLabelText('Password');
 
     expect(passwordField).toHaveAttribute('type', 'password');
 

@@ -39,9 +39,12 @@ describe('SettingsForm', () => {
     expect(urlField).toBeDisabled();
   });
 
-  it('warns that lowering the threshold makes customers instantly eligible', () => {
+  it('explains, behind the info tip, that lowering the threshold makes customers instantly eligible', async () => {
     render(<SettingsForm business={business} onSubmit={() => {}} submitting={false} saved={false} />);
 
+    // Collapsed by default, revealed on tap.
+    expect(screen.queryByText(/instantly eligible/i)).toBeNull();
+    await userEvent.click(screen.getByRole('button', { name: /why this matters/i }));
     expect(screen.getByText(/instantly eligible/i)).toBeTruthy();
   });
 

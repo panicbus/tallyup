@@ -4,7 +4,12 @@ import userEvent from '@testing-library/user-event';
 import { LogoPicker } from './LogoPicker';
 import { uploadLogo } from '../lib/logo-upload';
 
-vi.mock('../lib/logo-upload', () => ({ uploadLogo: vi.fn() }));
+// Keep the real module's constants (LogoPicker reads ALLOWED_LOGO_TYPES at
+// render); stub only the network call.
+vi.mock('../lib/logo-upload', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../lib/logo-upload')>()),
+  uploadLogo: vi.fn(),
+}));
 
 const uploadLogoMock = vi.mocked(uploadLogo);
 
