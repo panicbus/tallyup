@@ -5,6 +5,7 @@ import { normalizeEmail } from '@tallyup/shared';
 import { createInvite, deactivateStaffMember, getMe, getStaffRoster, revokeInvite } from '../lib/api';
 import type { MeResponse, StaffRole, StaffRosterResponse } from '../lib/api';
 import { supabaseClient } from '../lib/supabase';
+import { staffDisplayName } from '../lib/format';
 import { StaffHeader } from '../components/StaffHeader';
 
 export function StaffManagement() {
@@ -270,7 +271,7 @@ export function StaffManagement() {
                     opacity: entry.deactivatedAt ? 0.55 : 1,
                   }}
                 >
-                  <span style={{ fontSize: 14 }}>{entry.name || entry.email}</span>
+                  <span style={{ fontSize: 14 }}>{staffDisplayName(entry.name, entry.email)}</span>
                   <span className="tag tag-neutral">{entry.role}</span>
                   {entry.deactivatedAt && <span className="tag tag-neutral">Deactivated</span>}
                   {me.role === 'owner' && !entry.deactivatedAt && entry.id !== me.id && (

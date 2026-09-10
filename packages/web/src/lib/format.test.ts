@@ -1,5 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { formatJoinedDate, formatUsPhoneInput, formatWaitTime, isUrgentWait } from './format';
+import { formatJoinedDate, formatUsPhoneInput, formatWaitTime, isUrgentWait, staffDisplayName } from './format';
+
+describe('staffDisplayName', () => {
+  it('uses the name when one is set', () => {
+    expect(staffDisplayName('Riley', 'riley@example.com')).toBe('Riley');
+  });
+
+  it('falls back to the email when the name is null', () => {
+    expect(staffDisplayName(null, 'riley@example.com')).toBe('riley@example.com');
+  });
+
+  it('falls back to the email when the name is blank or whitespace', () => {
+    expect(staffDisplayName('', 'riley@example.com')).toBe('riley@example.com');
+    expect(staffDisplayName('   ', 'riley@example.com')).toBe('riley@example.com');
+  });
+
+  it('trims a name with surrounding whitespace', () => {
+    expect(staffDisplayName('  Riley  ', 'riley@example.com')).toBe('Riley');
+  });
+});
 
 describe('formatWaitTime', () => {
   it('formats under a minute as 0:SS waiting', () => {

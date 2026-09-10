@@ -19,7 +19,7 @@ export function Settings() {
   const [saved, setSaved] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
   const [nameInput, setNameInput] = useState('');
-  const [nameStatus, setNameStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
+  const [nameStatus, setNameStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   useEffect(() => {
     getMe().then((result) => {
@@ -43,6 +43,13 @@ export function Settings() {
     const timer = setTimeout(() => setSaved(false), 5000);
     return () => clearTimeout(timer);
   }, [saved]);
+
+  // Same transient-confirmation pattern for the name field's own status.
+  useEffect(() => {
+    if (nameStatus !== 'saved') return;
+    const timer = setTimeout(() => setNameStatus('idle'), 3000);
+    return () => clearTimeout(timer);
+  }, [nameStatus]);
 
   useEffect(() => {
     if (!qrOpen) return;
@@ -72,16 +79,15 @@ export function Settings() {
   async function handleSaveName() {
     if (!me) return;
     setNameStatus('saving');
-    setError(undefined);
     try {
       const updated = await updateMyName(nameInput.trim());
       setMe(updated);
       setNameInput(updated.name ?? '');
       setNameStatus('saved');
-      setTimeout(() => setNameStatus('idle'), 3000);
     } catch {
-      setNameStatus('idle');
-      setError('Could not save your name.');
+      // Its own status, not the shared `error` — that only renders inside
+      // the owner-only edit form, so a staff member would never see it.
+      setNameStatus('error');
     }
   }
 
@@ -234,9 +240,15 @@ export function Settings() {
                       {nameStatus === 'saving' ? 'Saving…' : nameStatus === 'saved' ? 'Saved' : 'Save'}
                     </button>
                   </div>
-                  <p className="text-muted" style={{ margin: '6px 0 0', fontSize: 12 }}>
-                    Shown to your team instead of your email once set.
-                  </p>
+                  {nameStatus === 'error' ? (
+                    <p role="alert" style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--color-accent-700)' }}>
+                      Could not save your name. Try again.
+                    </p>
+                  ) : (
+                    <p className="text-muted" style={{ margin: '6px 0 0', fontSize: 12 }}>
+                      Shown to your team instead of your email once set.
+                    </p>
+                  )}
                 </div>
 
                 <p className="text-muted" style={{ margin: 0, fontSize: 13 }}>

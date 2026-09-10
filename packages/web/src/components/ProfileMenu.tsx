@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { staffDisplayName } from '../lib/format';
 
 interface ProfileMenuProps {
   email: string;
@@ -14,7 +15,7 @@ interface ProfileMenuProps {
 export function ProfileMenu({ email, name, role, onSignOut }: ProfileMenuProps) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
-  const identity = name && name.trim() ? name.trim() : email;
+  const identity = staffDisplayName(name, email);
   const initial = identity.charAt(0).toUpperCase() || '?';
   const roleLabel = role === 'owner' ? 'Owner' : 'Staff';
 

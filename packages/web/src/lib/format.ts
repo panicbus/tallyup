@@ -45,3 +45,11 @@ export function formatJoinedDate(joinedAt: string): string {
     timeZone: 'UTC',
   });
 }
+
+/** How a staff member is labelled in the UI: their chosen name, or their
+ * email address until they set one. The API stores `name` trimmed-or-null,
+ * but the `.trim()` guard here keeps the two call sites (the account menu
+ * and the staff roster) from diverging if that ever changes. */
+export function staffDisplayName(name: string | null, email: string): string {
+  return name && name.trim() ? name.trim() : email;
+}
