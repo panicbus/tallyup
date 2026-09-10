@@ -11,6 +11,8 @@ async function authHeaders(): Promise<Record<string, string>> {
 export interface MeResponse {
   id: string;
   email: string;
+  /** The staff member's chosen display name, or null if unset. */
+  name: string | null;
   role: string;
   business: {
     id: string;
@@ -244,10 +246,11 @@ export type StaffRole = 'owner' | 'staff';
 
 export interface StaffRosterEntry {
   id: string;
+  /** The teammate's chosen display name, or null; the UI falls back to email. */
+  name: string | null;
+  email: string;
   role: StaffRole;
   deactivatedAt: string | null;
-  // Owner-only — absent entirely for a non-owner caller.
-  email?: string;
 }
 
 export interface PendingInvite {
@@ -268,6 +271,18 @@ export interface StaffRosterResponse {
 export async function getStaffRoster(slug: string): Promise<StaffRosterResponse> {
   const response = await fetch(`${API_URL}/businesses/${slug}/staff`, { headers: await authHeaders() });
   if (!response.ok) throw new Error(`Failed to load staff (${response.status})`);
+  return response.json();
+}
+
+/** Sets the signed-in staff member's own display name (empty string clears
+ * it). Returns the refreshed me-shape. */
+export async function updateMyName(name: string): Promise<MeResponse> {
+  const response = await fetch(`${API_URL}/me`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
+    body: JSON.stringify({ name }),
+  });
+  if (!response.ok) throw new Error(`Failed to save your name (${response.status})`);
   return response.json();
 }
 

@@ -211,7 +211,7 @@ export function createKyselyStaffPort(db: Kysely<Database>): StaffPort {
     async listStaff(businessId): Promise<StaffRoster> {
       const staffRows = await db
         .selectFrom('staff')
-        .select(['id', 'email', 'role', 'deactivated_at'])
+        .select(['id', 'email', 'name', 'role', 'deactivated_at'])
         .where('business_id', '=', businessId)
         .orderBy('created_at', 'asc')
         .execute();
@@ -228,6 +228,7 @@ export function createKyselyStaffPort(db: Kysely<Database>): StaffPort {
       const staff: StaffListEntry[] = staffRows.map((row) => ({
         id: row.id,
         email: row.email,
+        name: row.name,
         role: row.role,
         deactivatedAt: row.deactivated_at ? new Date(row.deactivated_at) : null,
       }));

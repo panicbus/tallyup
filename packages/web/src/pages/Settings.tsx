@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Pencil, QrCode, X } from 'lucide-react';
-import { getMe, updateBusiness } from '../lib/api';
+import { getMe, updateBusiness, updateMyName } from '../lib/api';
 import type { MeResponse } from '../lib/api';
 import { supabaseClient } from '../lib/supabase';
 import { SettingsForm, type SettingsFormValues } from '../components/SettingsForm';
@@ -18,6 +18,8 @@ export function Settings() {
   const [error, setError] = useState<string | undefined>();
   const [saved, setSaved] = useState(false);
   const [qrOpen, setQrOpen] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+  const [nameStatus, setNameStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
   useEffect(() => {
     getMe().then((result) => {
@@ -30,6 +32,7 @@ export function Settings() {
         return;
       }
       setMe(result);
+      setNameInput(result.name ?? '');
     });
   }, [slug, navigate]);
 
@@ -63,6 +66,22 @@ export function Settings() {
       setError('Could not save changes.');
     } finally {
       setSubmitting(false);
+    }
+  }
+
+  async function handleSaveName() {
+    if (!me) return;
+    setNameStatus('saving');
+    setError(undefined);
+    try {
+      const updated = await updateMyName(nameInput.trim());
+      setMe(updated);
+      setNameInput(updated.name ?? '');
+      setNameStatus('saved');
+      setTimeout(() => setNameStatus('idle'), 3000);
+    } catch {
+      setNameStatus('idle');
+      setError('Could not save your name.');
     }
   }
 
@@ -183,14 +202,56 @@ export function Settings() {
                   </button>
                 </div>
               </div>
-              <button
-                type="button"
-                onClick={handleSignOut}
-                className="btn btn-primary"
-                style={{ alignSelf: 'flex-start', marginTop: 8 }}
+
+              <div
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 12,
+                  marginTop: 8,
+                  paddingTop: 16,
+                  borderTop: '1px solid var(--color-divider)',
+                }}
               >
-                Sign out
-              </button>
+                <div className="field">
+                  <label htmlFor="your-name">Your name</label>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <input
+                      id="your-name"
+                      className="input"
+                      placeholder="First name"
+                      maxLength={60}
+                      value={nameInput}
+                      onChange={(e) => setNameInput(e.target.value)}
+                      style={{ flex: 1 }}
+                    />
+                    <button
+                      type="button"
+                      className="btn btn-secondary"
+                      disabled={nameStatus === 'saving' || nameInput.trim() === (me.name ?? '')}
+                      onClick={handleSaveName}
+                    >
+                      {nameStatus === 'saving' ? 'Saving…' : nameStatus === 'saved' ? 'Saved' : 'Save'}
+                    </button>
+                  </div>
+                  <p className="text-muted" style={{ margin: '6px 0 0', fontSize: 12 }}>
+                    Shown to your team instead of your email once set.
+                  </p>
+                </div>
+
+                <p className="text-muted" style={{ margin: 0, fontSize: 13 }}>
+                  Signed in under: {me.email}
+                </p>
+
+                <button
+                  type="button"
+                  onClick={handleSignOut}
+                  className="btn btn-primary"
+                  style={{ alignSelf: 'flex-start' }}
+                >
+                  Sign out
+                </button>
+              </div>
             </>
           )}
         </div>

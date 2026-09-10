@@ -42,6 +42,8 @@ export type RevokeInviteResult = { outcome: 'revoked' } | { outcome: 'not_found'
 export interface StaffListEntry {
   id: string;
   email: string;
+  /** The staff member's chosen display name, or null if unset. */
+  name: string | null;
   role: StaffRole;
   deactivatedAt: Date | null;
 }

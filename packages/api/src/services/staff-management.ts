@@ -6,11 +6,10 @@ import { renderInviteEmail } from './invite-email.js';
 
 export interface VisibleStaffEntry {
   id: string;
+  name: string | null;
+  email: string;
   role: StaffRole;
   deactivatedAt: Date | null;
-  /** Owner-only — absent entirely for a non-owner caller, not just blanked,
-   * so there's no field a client could mistakenly render as empty. */
-  email?: string;
 }
 
 export interface VisibleRoster {
@@ -21,10 +20,10 @@ export interface VisibleRoster {
 }
 
 /**
- * Shapes the roster per caller role — the same masking convention as
- * phone numbers, applied here to email and pending-invite visibility
- * instead. All staff see who their active colleagues are; only the owner
- * sees emails, deactivated history, and pending invites.
+ * Shapes the roster per caller role. Everyone on the team can see who their
+ * active colleagues are (name, falling back to email, and role) so shifts
+ * can tell each other apart. Only the owner additionally sees deactivated
+ * history and pending invites.
  */
 export async function getStaffRoster(
   port: Pick<StaffPort, 'listStaff'>,
@@ -39,7 +38,13 @@ export async function getStaffRoster(
   return {
     staff: roster.staff
       .filter((entry) => entry.deactivatedAt === null)
-      .map((entry) => ({ id: entry.id, role: entry.role, deactivatedAt: null })),
+      .map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        email: entry.email,
+        role: entry.role,
+        deactivatedAt: null,
+      })),
   };
 }
 

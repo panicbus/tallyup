@@ -105,9 +105,9 @@ export function Customers() {
           businessName={me.business.name}
           logoUrl={me.business.logoUrl}
           userEmail={me.email}
+          userName={me.name}
           userRole={me.role}
           onSignOut={handleSignOut}
-          showStaffTab={me.role === 'owner'}
         />
 
         <div className="page-content app-content" style={{ paddingTop: 24, gap: 16, maxWidth: 'none' }}>

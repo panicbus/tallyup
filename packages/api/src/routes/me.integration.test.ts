@@ -47,6 +47,7 @@ describe('GET /me', () => {
     expect(response.json()).toEqual({
       id: staff.id,
       email: 'owner@example.com',
+      name: null,
       role: 'owner',
       business: {
         id: business.id,
@@ -103,6 +104,69 @@ describe('GET /me', () => {
     const app = buildApp({ checkInPort: createKyselyCheckInPort(realDb), staffPort: createKyselyStaffPort(realDb), authPort, emailPort: createInMemoryEmailPort().port, db: realDb, appUrl: 'http://test.local' }, { logger: false });
 
     const response = await app.inject({ method: 'GET', url: '/me', headers: { authorization: `Bearer ${token}` } });
+
+    expect(response.statusCode).toBe(401);
+  });
+});
+
+describe('PATCH /me', () => {
+  function buildMeApp(realDb: Kysely<Database>) {
+    const { port: authPort, issueToken } = createInMemoryAuthPort();
+    const app = buildApp(
+      {
+        checkInPort: createKyselyCheckInPort(realDb),
+        staffPort: createKyselyStaffPort(realDb),
+        authPort,
+        emailPort: createInMemoryEmailPort().port,
+        db: realDb,
+        appUrl: 'http://test.local',
+      },
+      { logger: false },
+    );
+    return { app, issueToken };
+  }
+
+  test('sets the staff member\'s display name and GET /me then returns it', async ({ realDb }) => {
+    const authUserId = randomUUID();
+    await seedBusinessWithStaff(realDb, authUserId);
+    const { app, issueToken } = buildMeApp(realDb);
+    const headers = { authorization: `Bearer ${issueToken({ userId: authUserId, email: 'owner@example.com' })}` };
+
+    const patched = await app.inject({ method: 'PATCH', url: '/me', headers, payload: { name: '  Sam  ' } });
+    expect(patched.statusCode).toBe(200);
+    expect(patched.json().name).toBe('Sam');
+
+    const me = await app.inject({ method: 'GET', url: '/me', headers });
+    expect(me.json().name).toBe('Sam');
+  });
+
+  test('an empty name clears it back to null', async ({ realDb }) => {
+    const authUserId = randomUUID();
+    await seedBusinessWithStaff(realDb, authUserId);
+    const { app, issueToken } = buildMeApp(realDb);
+    const headers = { authorization: `Bearer ${issueToken({ userId: authUserId, email: 'owner@example.com' })}` };
+
+    await app.inject({ method: 'PATCH', url: '/me', headers, payload: { name: 'Sam' } });
+    const cleared = await app.inject({ method: 'PATCH', url: '/me', headers, payload: { name: '' } });
+
+    expect(cleared.json().name).toBeNull();
+  });
+
+  test('400s for a name over 60 characters', async ({ realDb }) => {
+    const authUserId = randomUUID();
+    await seedBusinessWithStaff(realDb, authUserId);
+    const { app, issueToken } = buildMeApp(realDb);
+    const headers = { authorization: `Bearer ${issueToken({ userId: authUserId, email: 'owner@example.com' })}` };
+
+    const response = await app.inject({ method: 'PATCH', url: '/me', headers, payload: { name: 'x'.repeat(61) } });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  test('401s with no Authorization header', async ({ realDb }) => {
+    const { app } = buildMeApp(realDb);
+
+    const response = await app.inject({ method: 'PATCH', url: '/me', payload: { name: 'Sam' } });
 
     expect(response.statusCode).toBe(401);
   });

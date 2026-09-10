@@ -4,6 +4,8 @@ import type { Database, StaffRole } from './types.js';
 export interface StaffContext {
   id: string;
   email: string;
+  /** The staff member's chosen display name, or null if unset. */
+  name: string | null;
   role: StaffRole;
   business: {
     id: string;
@@ -31,6 +33,7 @@ export async function findStaffByAuthUserId(db: Kysely<Database>, authUserId: st
     .select([
       'staff.id as id',
       'staff.email as email',
+      'staff.name as name',
       'staff.role as role',
       'businesses.id as businessId',
       'businesses.name as businessName',
@@ -51,6 +54,7 @@ export async function findStaffByAuthUserId(db: Kysely<Database>, authUserId: st
   return {
     id: row.id,
     email: row.email,
+    name: row.name,
     role: row.role,
     business: {
       id: row.businessId,

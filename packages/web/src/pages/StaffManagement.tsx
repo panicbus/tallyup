@@ -30,10 +30,8 @@ export function StaffManagement() {
         navigate(`/dashboard/${result.business.slug}/staff`);
         return;
       }
-      if (result.role !== 'owner') {
-        navigate(`/dashboard/${slug}`);
-        return;
-      }
+      // Staff see this page too, as a read-only roster. Owner-only pieces
+      // (the invite form, deactivate, pending invites) are gated below.
       setMe(result);
     });
   }, [slug, navigate]);
@@ -159,9 +157,9 @@ export function StaffManagement() {
           businessName={me.business.name}
           logoUrl={me.business.logoUrl}
           userEmail={me.email}
+          userName={me.name}
           userRole={me.role}
           onSignOut={handleSignOut}
-          showStaffTab={me.role === 'owner'}
         />
 
         <div className="page-content app-content" style={{ paddingTop: 24, gap: 16, maxWidth: 'none' }}>
@@ -173,83 +171,87 @@ export function StaffManagement() {
 
           <h3 style={{ margin: 0 }}>Staff</h3>
 
-          <p className="text-muted" style={{ margin: 0, fontSize: 13, maxWidth: 460 }}>
-            Enter a teammate's email and we'll send them an invitation link. The role you pick is what
-            they get: <strong>staff</strong> can run check-ins and redemptions; <strong>owners</strong>{' '}
-            can also change settings, manage staff, and export customers.
-          </p>
+          {me.role === 'owner' && (
+            <>
+              <p className="text-muted" style={{ margin: 0, fontSize: 13, maxWidth: 460 }}>
+                Enter a teammate's email and we'll send them an invitation link. The role you pick is
+                what they get: <strong>staff</strong> can run check-ins and redemptions;{' '}
+                <strong>owners</strong> can also change settings, manage staff, and export customers.
+              </p>
 
-          {inviteSentTo && (
-            <p style={{ margin: 0, fontSize: 13, color: 'var(--color-accent-700)' }}>
-              Invitation sent to {inviteSentTo}.
-            </p>
-          )}
-          {alreadyOnTeam && (
-            <p className="text-muted" style={{ margin: 0, fontSize: 13 }}>
-              {inviteEmail.trim()} is already on your team. Changing someone's role isn't supported yet.
-            </p>
-          )}
-
-          <div
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-              gap: 10,
-              padding: '14px 16px',
-              background: 'var(--color-surface)',
-              borderRadius: 'var(--radius-md)',
-            }}
-          >
-            <input
-              type="email"
-              className="input"
-              placeholder="teammate@example.com"
-              aria-label="Teammate's email"
-              value={inviteEmail}
-              onChange={(e) => setInviteEmail(e.target.value)}
-              style={{ flex: '1 1 200px' }}
-            />
-            <div className="dropdown" data-open={roleMenuOpen} ref={roleMenuRef}>
-              <button
-                type="button"
-                className="dropdown-trigger"
-                aria-haspopup="listbox"
-                aria-expanded={roleMenuOpen}
-                onClick={() => setRoleMenuOpen((open) => !open)}
-              >
-                {inviteRole === 'owner' ? 'Owner' : 'Staff'}
-                <ChevronDown size={14} />
-              </button>
-              {roleMenuOpen && (
-                <div className="dropdown-menu" role="listbox" aria-label="Invite role">
-                  {(['staff', 'owner'] as const).map((role) => (
-                    <button
-                      key={role}
-                      type="button"
-                      role="option"
-                      aria-selected={inviteRole === role}
-                      onClick={() => {
-                        setInviteRole(role);
-                        setRoleMenuOpen(false);
-                      }}
-                    >
-                      {role === 'owner' ? 'Owner' : 'Staff'}
-                    </button>
-                  ))}
-                </div>
+              {inviteSentTo && (
+                <p style={{ margin: 0, fontSize: 13, color: 'var(--color-accent-700)' }}>
+                  Invitation sent to {inviteSentTo}.
+                </p>
               )}
-            </div>
-            <button
-              type="button"
-              className="btn btn-primary"
-              style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-              disabled={creatingInvite || inviteEmail.trim() === ''}
-              onClick={handleCreateInvite}
-            >
-              <UserPlus size={14} /> {creatingInvite ? 'Sending…' : 'Send invitation'}
-            </button>
-          </div>
+              {alreadyOnTeam && (
+                <p className="text-muted" style={{ margin: 0, fontSize: 13 }}>
+                  {inviteEmail.trim()} is already on your team. Changing someone's role isn't supported yet.
+                </p>
+              )}
+
+              <div
+                style={{
+                  display: 'flex',
+                  flexWrap: 'wrap',
+                  alignItems: 'center',
+                  gap: 10,
+                  padding: '14px 16px',
+                  background: 'var(--color-surface)',
+                  borderRadius: 'var(--radius-md)',
+                }}
+              >
+                <input
+                  type="email"
+                  className="input"
+                  placeholder="teammate@example.com"
+                  aria-label="Teammate's email"
+                  value={inviteEmail}
+                  onChange={(e) => setInviteEmail(e.target.value)}
+                  style={{ flex: '1 1 200px' }}
+                />
+                <div className="dropdown" data-open={roleMenuOpen} ref={roleMenuRef}>
+                  <button
+                    type="button"
+                    className="dropdown-trigger"
+                    aria-haspopup="listbox"
+                    aria-expanded={roleMenuOpen}
+                    onClick={() => setRoleMenuOpen((open) => !open)}
+                  >
+                    {inviteRole === 'owner' ? 'Owner' : 'Staff'}
+                    <ChevronDown size={14} />
+                  </button>
+                  {roleMenuOpen && (
+                    <div className="dropdown-menu" role="listbox" aria-label="Invite role">
+                      {(['staff', 'owner'] as const).map((role) => (
+                        <button
+                          key={role}
+                          type="button"
+                          role="option"
+                          aria-selected={inviteRole === role}
+                          onClick={() => {
+                            setInviteRole(role);
+                            setRoleMenuOpen(false);
+                          }}
+                        >
+                          {role === 'owner' ? 'Owner' : 'Staff'}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                  disabled={creatingInvite || inviteEmail.trim() === ''}
+                  onClick={handleCreateInvite}
+                >
+                  <UserPlus size={14} /> {creatingInvite ? 'Sending…' : 'Send invitation'}
+                </button>
+              </div>
+            </>
+          )}
 
           {roster && (
             <ul style={{ margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -268,10 +270,10 @@ export function StaffManagement() {
                     opacity: entry.deactivatedAt ? 0.55 : 1,
                   }}
                 >
-                  <span style={{ fontSize: 14 }}>{entry.email ?? entry.role}</span>
+                  <span style={{ fontSize: 14 }}>{entry.name || entry.email}</span>
                   <span className="tag tag-neutral">{entry.role}</span>
                   {entry.deactivatedAt && <span className="tag tag-neutral">Deactivated</span>}
-                  {!entry.deactivatedAt && entry.id !== me.id && (
+                  {me.role === 'owner' && !entry.deactivatedAt && entry.id !== me.id && (
                     <button
                       type="button"
                       className="btn btn-secondary"
@@ -286,7 +288,7 @@ export function StaffManagement() {
             </ul>
           )}
 
-          {roster?.pendingInvites && roster.pendingInvites.length > 0 && (
+          {me.role === 'owner' && roster?.pendingInvites && roster.pendingInvites.length > 0 && (
             <>
               <h4 style={{ margin: 0 }}>Pending invites</h4>
               <ul style={{ margin: 0, padding: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>

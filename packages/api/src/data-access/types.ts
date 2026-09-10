@@ -37,6 +37,9 @@ export interface StaffTable {
   id: Generated<string>;
   business_id: string;
   email: string;
+  /** The staff member's own display name, set in Settings. Null until they
+   * fill it in; the UI falls back to the email address. */
+  name: string | null;
   role: StaffRole;
   created_at: CreatedAt;
   /** The Supabase Auth user id (`sub` claim) this staff row signs in as.

@@ -227,7 +227,7 @@ describe('POST /invites/lookup', () => {
 });
 
 describe('GET /businesses/:slug/staff', () => {
-  it('shows the owner emails and pending invites, with the invited address', async () => {
+  it('shows the owner names, emails, and pending invites, with the invited address', async () => {
     const { app, seedBusiness, loginAsStaffOf, inviteViaApi } = buildTestApp();
     const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
     const { headers } = loginAsStaffOf(business.id);
@@ -238,11 +238,12 @@ describe('GET /businesses/:slug/staff', () => {
     expect(response.statusCode).toBe(200);
     const body = response.json();
     expect(body.staff[0]).toHaveProperty('email');
+    expect(body.staff[0]).toHaveProperty('name');
     expect(body.pendingInvites).toHaveLength(1);
     expect(body.pendingInvites[0].email).toBe('pending@example.com');
   });
 
-  it('hides emails and pending invites from a non-owner staff member', async () => {
+  it('gives a non-owner the team list (names and emails) but not pending invites', async () => {
     const { app, seedBusiness, loginAsStaffOf, inviteViaApi } = buildTestApp();
     const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
     const owner = loginAsStaffOf(business.id);
@@ -253,7 +254,9 @@ describe('GET /businesses/:slug/staff', () => {
 
     expect(response.statusCode).toBe(200);
     const body = response.json();
-    expect(body.staff.every((s: { email?: string }) => s.email === undefined)).toBe(true);
+    expect(body.staff.length).toBeGreaterThan(0);
+    expect(body.staff.every((s: { email?: string }) => typeof s.email === 'string')).toBe(true);
+    expect(body.staff[0]).toHaveProperty('name');
     expect(body.pendingInvites).toBeUndefined();
   });
 

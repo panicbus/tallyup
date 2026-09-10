@@ -7,10 +7,9 @@ interface StaffHeaderProps {
   businessName: string;
   logoUrl: string | null;
   userEmail: string;
+  userName: string | null;
   userRole: string;
   onSignOut: () => void;
-  /** Owners get a Staff tab; other staff don't manage the roster. */
-  showStaffTab?: boolean;
 }
 
 /**
@@ -26,16 +25,18 @@ export function StaffHeader({
   businessName,
   logoUrl,
   userEmail,
+  userName,
   userRole,
   onSignOut,
-  showStaffTab = false,
 }: StaffHeaderProps) {
   const { pathname } = useLocation();
 
+  // Every role sees every tab. The Staff page itself shows a read-only
+  // roster to non-owners (no invite form, no deactivate).
   const tabs = [
     { label: 'Dashboard', href: `/dashboard/${slug}` },
     { label: 'Customers', href: `/dashboard/${slug}/customers` },
-    ...(showStaffTab ? [{ label: 'Staff', href: `/dashboard/${slug}/staff` }] : []),
+    { label: 'Staff', href: `/dashboard/${slug}/staff` },
     { label: 'Settings', href: `/dashboard/${slug}/settings` },
   ];
 
@@ -87,7 +88,7 @@ export function StaffHeader({
         >
           <SettingsIcon size={18} />
         </Link>
-        <ProfileMenu email={userEmail} role={userRole} onSignOut={onSignOut} />
+        <ProfileMenu email={userEmail} name={userName} role={userRole} onSignOut={onSignOut} />
       </div>
     </div>
   );

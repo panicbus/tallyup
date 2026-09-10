@@ -35,6 +35,7 @@ describe('findStaffByAuthUserId', () => {
     expect(result).toEqual({
       id: staff.id,
       email: 'owner@example.com',
+      name: null,
       role: 'owner',
       business: {
         id: business.id,

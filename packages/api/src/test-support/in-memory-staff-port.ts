@@ -9,6 +9,7 @@ interface StoredStaff {
   id: string;
   businessId: string;
   email: string;
+  name: string | null;
   role: StaffRole;
   authUserId: string;
   deactivatedAt: Date | null;
@@ -40,7 +41,7 @@ export function createInMemoryStaffPort() {
   const businessesById = new Map<string, StaffContext['business']>();
 
   function toStaffContext(staff: StoredStaff): StaffContext {
-    return { id: staff.id, email: staff.email, role: staff.role, business: staff.business };
+    return { id: staff.id, email: staff.email, name: staff.name, role: staff.role, business: staff.business };
   }
 
   function placeholderBusiness(businessId: string): StaffContext['business'] {
@@ -164,6 +165,7 @@ export function createInMemoryStaffPort() {
           id: staffId,
           businessId: invite.businessId,
           email: invite.email,
+          name: null,
           role: invite.role,
           authUserId,
           deactivatedAt: null,
@@ -193,7 +195,7 @@ export function createInMemoryStaffPort() {
     async listStaff(businessId) {
       const staff = [...staffById.values()]
         .filter((s) => s.businessId === businessId)
-        .map((s) => ({ id: s.id, email: s.email, role: s.role, deactivatedAt: s.deactivatedAt }));
+        .map((s) => ({ id: s.id, email: s.email, name: s.name, role: s.role, deactivatedAt: s.deactivatedAt }));
 
       const now = Date.now();
       const pendingInvites = [...invites.values()]
@@ -224,12 +226,19 @@ export function createInMemoryStaffPort() {
     },
   };
 
-  function addStaff(input: { authUserId: string; businessId: string; email?: string; role?: StaffRole }): StaffContext {
+  function addStaff(input: {
+    authUserId: string;
+    businessId: string;
+    email?: string;
+    name?: string | null;
+    role?: StaffRole;
+  }): StaffContext {
     const id = randomUUID();
     const staff: StoredStaff = {
       id,
       businessId: input.businessId,
       email: input.email ?? 'staff@example.com',
+      name: input.name ?? null,
       role: input.role ?? 'owner',
       authUserId: input.authUserId,
       deactivatedAt: null,
