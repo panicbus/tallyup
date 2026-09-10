@@ -207,10 +207,38 @@ input[type='number']::-webkit-outer-spin-button {
   text-align: left; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase;
   color: color-mix(in srgb, var(--color-text) 60%, transparent);
   padding: var(--space-2); border-bottom: 1px solid var(--color-divider);
+  /* Cell values never wrap: a broken phone number or a two-line "Opted in"
+     tag reads as noise. The desktop content column is widened to fit (see
+     the .app-content :has() rule in the 900px block); the wrap around it
+     scrolls if it ever still overflows. Column titles may wrap on mobile. */
+  white-space: nowrap;
 }
 .table td {
   padding: var(--space-2);
   border-bottom: 1px solid color-mix(in srgb, var(--color-text) 8%, transparent);
+  white-space: nowrap;
+}
+@media (max-width: 899px) {
+  .table th { white-space: normal; }
+
+  /* Auth screens on a phone: the heading row and every field run the full
+     width of the viewport (just the page-content padding as a gutter),
+     rather than collapsing to the form's natural width in a centered
+     column. .auth-stage otherwise hugs its content (it's a centered flex
+     item), so it has to be told to fill the row before page-content's
+     width:100% means anything. The submit button stays button-width and
+     centered under the fields, so it doesn't stretch into a bar. */
+  .auth-stage {
+    width: 100%;
+  }
+  .auth-stage .page-content {
+    max-width: none;
+  }
+  .auth-stage .btn-block {
+    align-self: center;
+    width: 100%;
+    max-width: 260px;
+  }
 }
 
 /* — roster layout: a card list below the desktop breakpoint, matching every
@@ -465,6 +493,12 @@ input[type='number']::-webkit-outer-spin-button {
   .app-content {
     padding: 40px !important;
     max-width: 640px !important;
+  }
+  /* The Customers roster is the one screen whose content is a wide table;
+     640px forces its cells to wrap. Give that page room for all six columns
+     on one line each. */
+  .app-content:has(.roster-table-wrap) {
+    max-width: 880px !important;
   }
 
   .roster-table-wrap { display: block; }

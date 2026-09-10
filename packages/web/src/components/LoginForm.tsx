@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
+import { PasswordInput } from './PasswordInput';
 
 interface LoginFormProps {
   onSubmit: (email: string, password: string) => void;
@@ -15,7 +15,6 @@ interface LoginFormProps {
 export function LoginForm({ onSubmit, submitting, error, submitLabel = 'Sign in', lockedEmail }: LoginFormProps) {
   const [email, setEmail] = useState(lockedEmail ?? '');
   const [password, setPassword] = useState('');
-  const [passwordVisible, setPasswordVisible] = useState(false);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -39,24 +38,7 @@ export function LoginForm({ onSubmit, submitting, error, submitLabel = 'Sign in'
       </div>
       <div className="field">
         <label htmlFor="password">Password</label>
-        <div className="password-field">
-          <input
-            id="password"
-            className="input"
-            type={passwordVisible ? 'text' : 'password'}
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-          <button
-            type="button"
-            className="password-toggle"
-            aria-label={passwordVisible ? 'Hide password' : 'Show password'}
-            onClick={() => setPasswordVisible((v) => !v)}
-          >
-            {passwordVisible ? <EyeOff size={16} /> : <Eye size={16} />}
-          </button>
-        </div>
+        <PasswordInput id="password" value={password} onChange={setPassword} required />
       </div>
       {error && (
         <p role="alert" style={{ color: 'var(--color-accent-700)', fontSize: 13, margin: 0 }}>

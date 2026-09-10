@@ -26,7 +26,7 @@ export function AuthShell({ heading, subheading, children, footer }: AuthShellPr
           >
             <X size={20} />
           </Link>
-          <img src="/logo.svg" alt="" width={72} height={72} style={{ display: 'block', margin: '4px auto 8px' }} />
+          <img src="/logo.svg" alt="" width={96} height={96} style={{ display: 'block', margin: '4px auto 8px' }} />
           <div>
             <h2 style={{ margin: subheading ? '0 0 4px' : 0 }}>{heading}</h2>
             {subheading && (

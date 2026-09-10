@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { arrivedViaPasswordRecovery, supabaseClient } from '../lib/supabase';
 import { getMe } from '../lib/api';
 import { AuthShell } from '../components/AuthShell';
+import { PasswordInput } from '../components/PasswordInput';
 
 type Phase = 'checking' | 'ready' | 'invalid' | 'saving';
 
@@ -72,14 +73,12 @@ export function ResetPassword() {
       <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div className="field">
           <label htmlFor="new-password">New password</label>
-          <input
+          <PasswordInput
             id="new-password"
-            className="input"
-            type="password"
             autoComplete="new-password"
             minLength={8}
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={setPassword}
             required
           />
         </div>
