@@ -27,8 +27,17 @@ export function resolveJoinState(input: {
     return { kind: 'not_found' };
   }
 
+  // Signed in as an account the invite is not addressed to. This comes
+  // before the "already on the team" checks on purpose: an owner who opens
+  // an invite they sent (while still signed in as themselves) lands here,
+  // not on "you're already on the team" -- which read as a bug to them.
+  // They have to sign out and use the invited address to accept it.
+  if (sessionEmail != null && normalizeEmail(sessionEmail) !== normalizeEmail(invite.email)) {
+    return { kind: 'wrong_account', invite, signedInAs: sessionEmail };
+  }
+
   // A real staff row means they are active somewhere already -- one shop per
-  // account. If it is this shop, that is a friendly "you're already in".
+  // account. If it is this shop, that is a friendly "you're on the team".
   if (me) {
     return me.business.slug === invite.businessSlug
       ? { kind: 'already_here', invite }
@@ -37,10 +46,6 @@ export function resolveJoinState(input: {
 
   if (!sessionEmail) {
     return { kind: 'needs_account', invite };
-  }
-
-  if (normalizeEmail(sessionEmail) !== normalizeEmail(invite.email)) {
-    return { kind: 'wrong_account', invite, signedInAs: sessionEmail };
   }
 
   return { kind: 'ready', invite };

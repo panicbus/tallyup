@@ -54,20 +54,20 @@ export function renderInviteEmail({ businessName, inviterEmail, role, joinUrl, e
   const subject = `Join ${businessName} on TallyUp`;
 
   const text = [
-    `${inviterEmail} invited you to join ${businessName} on TallyUp as ${noun}.`,
+    `${inviterEmail} invited you to join ${businessName} on TallyUp, the loyalty punch-card app, as ${noun}.`,
     '',
     'Open this link to accept:',
     joinUrl,
     '',
-    `This invitation expires ${expiry}. If you were not expecting it, you can ignore this email.`,
+    `This invitation expires ${expiry}. You are getting this because ${inviterEmail} entered your address on TallyUp's staff form. If that wasn't expected, you can ignore this email.`,
   ].join('\n');
 
   const html = [
     '<div style="font-family: system-ui, sans-serif; font-size: 15px; line-height: 1.5; color: #1a1a1a;">',
-    `<p>${escapeHtml(inviterEmail)} invited you to join <strong>${escapeHtml(businessName)}</strong> on TallyUp as ${escapeHtml(noun)}.</p>`,
+    `<p>${escapeHtml(inviterEmail)} invited you to join <strong>${escapeHtml(businessName)}</strong> on TallyUp, the loyalty punch-card app, as ${escapeHtml(noun)}.</p>`,
     `<p><a href="${escapeHtml(joinUrl)}" style="display: inline-block; padding: 10px 18px; background: #1a1a1a; color: #fff; border-radius: 6px; text-decoration: none;">Accept invitation</a></p>`,
     `<p style="font-size: 13px; color: #6b6b6b;">Or paste this link into your browser:<br>${escapeHtml(joinUrl)}</p>`,
-    `<p style="font-size: 13px; color: #6b6b6b;">This invitation expires ${escapeHtml(expiry)}. If you were not expecting it, you can ignore this email.</p>`,
+    `<p style="font-size: 13px; color: #6b6b6b;">This invitation expires ${escapeHtml(expiry)}. You are getting this because ${escapeHtml(inviterEmail)} entered your address on TallyUp's staff form. If that wasn't expected, you can ignore this email.</p>`,
     '</div>',
   ].join('\n');
 

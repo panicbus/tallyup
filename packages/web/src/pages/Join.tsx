@@ -156,8 +156,8 @@ export function Join() {
   if (state.kind === 'already_here') {
     return (
       <Message
-        heading={`You're already on the team at ${state.invite.businessName}`}
-        body="Nothing more to do here."
+        heading={`You're on the team at ${state.invite.businessName}`}
+        body="Head to your dashboard to get started."
         action={{ label: 'Go to dashboard', onClick: () => navigate(`/dashboard/${state.invite.businessSlug}`) }}
       />
     );

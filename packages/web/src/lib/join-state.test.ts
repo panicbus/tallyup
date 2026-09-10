@@ -46,6 +46,16 @@ describe('resolveJoinState', () => {
     ).toEqual({ kind: 'already_here', invite });
   });
 
+  it('is wrong_account when signed in as a different address, even while already staff of the inviting business', () => {
+    expect(
+      resolveJoinState({
+        invite,
+        me: { business: { slug: 'blue-bottle', name: 'Blue Bottle Coffee' } },
+        sessionEmail: 'owner@bluebottle.com',
+      }),
+    ).toEqual({ kind: 'wrong_account', invite, signedInAs: 'owner@bluebottle.com' });
+  });
+
   it('is already_elsewhere when the user is already staff of a different business', () => {
     expect(
       resolveJoinState({
