@@ -64,4 +64,13 @@ describe('StaffHeader', () => {
 
     expect(onSignOut).toHaveBeenCalled();
   });
+
+  it('opens the About modal from the nav', async () => {
+    renderAt('/dashboard/demo-shop');
+
+    expect(screen.queryByRole('heading', { name: 'About TallyUp' })).toBeNull();
+    await userEvent.click(tabs().getByRole('button', { name: 'About' }));
+
+    expect(screen.getByRole('heading', { name: 'About TallyUp' })).toBeTruthy();
+  });
 });

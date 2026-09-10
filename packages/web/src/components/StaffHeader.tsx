@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { Settings as SettingsIcon } from 'lucide-react';
 import { ProfileMenu } from './ProfileMenu';
+import { AboutModal } from './AboutModal';
 
 interface StaffHeaderProps {
   slug: string;
@@ -30,6 +32,7 @@ export function StaffHeader({
   onSignOut,
 }: StaffHeaderProps) {
   const { pathname } = useLocation();
+  const [aboutOpen, setAboutOpen] = useState(false);
 
   // Every role sees every tab. The Staff page itself shows a read-only
   // roster to non-owners (no invite form, no deactivate).
@@ -41,6 +44,7 @@ export function StaffHeader({
   ];
 
   return (
+    <>
     <div
       className="app-header"
       style={{
@@ -77,6 +81,9 @@ export function StaffHeader({
             {tab.label}
           </Link>
         ))}
+        <button type="button" className="nav-tab" onClick={() => setAboutOpen(true)}>
+          About
+        </button>
       </nav>
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -91,5 +98,7 @@ export function StaffHeader({
         <ProfileMenu email={userEmail} name={userName} role={userRole} onSignOut={onSignOut} />
       </div>
     </div>
+    {aboutOpen && <AboutModal onClose={() => setAboutOpen(false)} />}
+    </>
   );
 }
