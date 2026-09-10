@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Settings as SettingsIcon } from 'lucide-react';
 import { ProfileMenu } from './ProfileMenu';
+import { NavMenu } from './NavMenu';
 import { AboutModal } from './AboutModal';
 
 interface StaffHeaderProps {
@@ -42,6 +42,9 @@ export function StaffHeader({
     { label: 'Staff', href: `/dashboard/${slug}/staff` },
     { label: 'Settings', href: `/dashboard/${slug}/settings` },
   ];
+  // On mobile the tab row is hidden, so the header carries the current
+  // view's name instead.
+  const currentLabel = tabs.find((tab) => tab.href === pathname)?.label ?? '';
 
   return (
     <>
@@ -68,7 +71,10 @@ export function StaffHeader({
       >
         {logoUrl && <img src={logoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
       </div>
-      <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700 }}>{businessName}</div>
+      <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+        <div style={{ fontFamily: 'var(--font-heading)', fontWeight: 700 }}>{businessName}</div>
+        {currentLabel && <span className="nav-current-mobile">{currentLabel}</span>}
+      </div>
 
       <nav className="nav-tabs" aria-label="Primary">
         {tabs.map((tab) => (
@@ -87,14 +93,7 @@ export function StaffHeader({
       </nav>
 
       <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
-        <Link
-          to={`/dashboard/${slug}/settings`}
-          aria-label="Settings"
-          className="settings-icon-mobile"
-          style={{ color: 'var(--color-neutral-600)', padding: 4, display: 'flex' }}
-        >
-          <SettingsIcon size={18} />
-        </Link>
+        <NavMenu tabs={tabs} currentPath={pathname} onAbout={() => setAboutOpen(true)} />
         <ProfileMenu email={userEmail} name={userName} role={userRole} onSignOut={onSignOut} />
       </div>
     </div>

@@ -324,7 +324,8 @@ input[type='number']::-webkit-outer-spin-button {
   flex-direction: column;
   gap: 2px;
 }
-.dropdown-menu button {
+.dropdown-menu button,
+.dropdown-menu a {
   display: flex;
   align-items: center;
   padding: 8px 14px;
@@ -332,13 +333,17 @@ input[type='number']::-webkit-outer-spin-button {
   font-size: 14px;
   text-align: left;
   color: var(--color-text);
+  text-decoration: none;
   background: none;
   border: none;
   border-radius: var(--radius-sm);
   cursor: pointer;
   white-space: nowrap;
 }
-.dropdown-menu button[aria-selected='true'] { font-weight: 700; }
+.dropdown-menu button[aria-selected='true'],
+.dropdown-menu a[aria-current='page'] {
+  font-weight: 700;
+}
 
 /* — profile menu: the signed-in avatar in the top bar, with a menu that
    opens down-and-left (it sits at the right edge of the header) — */
@@ -377,6 +382,34 @@ input[type='number']::-webkit-outer-spin-button {
 .profile-menu-identity { color: var(--color-text); font-size: 13px; word-break: break-all; }
 .profile-menu-role { align-self: flex-start; margin-top: 3px; }
 .dropdown-menu button.profile-menu-signout { color: var(--color-accent-700); }
+
+/* — mobile nav: a hamburger that stands in for the desktop tab row, plus
+   the current view's name in the header (both hidden on desktop) — */
+.nav-menu { position: relative; flex: none; }
+.nav-menu-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--color-divider);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+.nav-menu .dropdown-menu {
+  left: auto;
+  right: 0;
+  min-width: 180px;
+}
+.nav-current-mobile {
+  font-family: var(--font-heading);
+  font-weight: 700;
+  font-size: 17px;
+  line-height: 1.2;
+}
 
 /* — prose: the Terms / Privacy body column — */
 .prose { display: flex; flex-direction: column; gap: 12px; font-size: 14px; line-height: 1.6; max-width: 62ch; }
@@ -461,7 +494,9 @@ input[type='number']::-webkit-outer-spin-button {
   .password-toggle:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
   .table tbody tr:hover { background: color-mix(in srgb, var(--color-text) 4%, transparent); }
   .dropdown-trigger:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
-  .dropdown-menu button:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+  .dropdown-menu button:hover,
+  .dropdown-menu a:hover { background: color-mix(in srgb, var(--color-text) 7%, transparent); }
+  .nav-menu-btn:hover { border-color: color-mix(in srgb, var(--color-text) 45%, transparent); }
 }
 
 @media (min-width: 900px) {
@@ -485,8 +520,10 @@ input[type='number']::-webkit-outer-spin-button {
   .app-header {
     padding: 20px 40px !important;
   }
-  .app-header .settings-icon-mobile {
-    display: none !important;
+  /* Desktop shows the full tab row, so the mobile stand-ins are hidden. */
+  .app-header .nav-menu,
+  .nav-current-mobile {
+    display: none;
   }
   .field-grid-2 {
     display: grid;

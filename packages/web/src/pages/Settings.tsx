@@ -6,8 +6,20 @@ import type { MeResponse } from '../lib/api';
 import { supabaseClient } from '../lib/supabase';
 import { SettingsForm, type SettingsFormValues } from '../components/SettingsForm';
 import { CheckInQrCode } from '../components/CheckInQrCode';
+import { StaffHeader } from '../components/StaffHeader';
 
 type Mode = 'view' | 'edit';
+
+// A text button that reads as a link — used for the "edit name" / "Back to
+// settings" affordances.
+const linkButtonStyle = {
+  background: 'none',
+  border: 'none',
+  color: 'var(--color-accent-700)',
+  padding: 0,
+  cursor: 'pointer',
+  font: 'inherit',
+} as const;
 
 export function Settings() {
   const { slug } = useParams() as { slug: string };
@@ -85,10 +97,22 @@ export function Settings() {
       setNameInput(updated.name ?? '');
       setNameStatus('saved');
     } catch {
-      // Its own status, not the shared `error` — that only renders inside
-      // the owner-only edit form, so a staff member would never see it.
       setNameStatus('error');
     }
+  }
+
+  function enterEditMode() {
+    if (!me) return;
+    setSaved(false);
+    setNameStatus('idle');
+    setNameInput(me.name ?? '');
+    setMode('edit');
+  }
+
+  function backToSettings() {
+    setNameInput(me?.name ?? '');
+    setNameStatus('idle');
+    setMode('view');
   }
 
   async function handleSignOut() {
@@ -109,47 +133,78 @@ export function Settings() {
   return (
     <div className="page">
       <div className="app-shell" style={{ width: '100%', maxWidth: 'var(--page-max-width)' }}>
-        <div className="page-content app-content" style={{ maxWidth: 'none' }}>
-          <button
-            type="button"
-            onClick={() => navigate(`/dashboard/${slug}`)}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: 'var(--color-accent-700)',
-              fontSize: 13,
-              padding: 0,
-              textAlign: 'left',
-              cursor: 'pointer',
-              alignSelf: 'flex-start',
-            }}
-          >
-            ← Back to queue
-          </button>
+        <StaffHeader
+          slug={slug}
+          businessName={me.business.name}
+          logoUrl={me.business.logoUrl}
+          userEmail={me.email}
+          userName={me.name}
+          userRole={me.role}
+          onSignOut={handleSignOut}
+        />
 
-          {mode === 'edit' && me.role === 'owner' ? (
-            <SettingsForm
-              business={me.business}
-              onSubmit={handleSubmit}
-              submitting={submitting}
-              saved={saved}
-              error={error}
-            />
+        <div className="page-content app-content" style={{ maxWidth: 'none' }}>
+          {mode === 'edit' ? (
+            <>
+              <button type="button" onClick={backToSettings} style={{ ...linkButtonStyle, fontSize: 13, alignSelf: 'flex-start' }}>
+                &larr; Back to settings
+              </button>
+
+              <div className="field">
+                <label htmlFor="first-name">First name</label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <input
+                    id="first-name"
+                    className="input"
+                    placeholder="First name"
+                    maxLength={60}
+                    value={nameInput}
+                    onChange={(e) => setNameInput(e.target.value)}
+                    style={{ flex: 1 }}
+                  />
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={nameStatus === 'saving' || nameInput.trim() === (me.name ?? '')}
+                    onClick={handleSaveName}
+                  >
+                    {nameStatus === 'saving' ? 'Saving…' : nameStatus === 'saved' ? 'Saved' : 'Save'}
+                  </button>
+                </div>
+                {nameStatus === 'error' ? (
+                  <p role="alert" style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--color-accent-700)' }}>
+                    Could not save your name. Try again.
+                  </p>
+                ) : (
+                  <p className="text-muted" style={{ margin: '6px 0 0', fontSize: 12 }}>
+                    Shown to your team instead of your email once set.
+                  </p>
+                )}
+              </div>
+
+              {me.role === 'owner' && (
+                <SettingsForm
+                  business={me.business}
+                  onSubmit={handleSubmit}
+                  submitting={submitting}
+                  saved={saved}
+                  error={error}
+                />
+              )}
+            </>
           ) : (
             <>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <h2 style={{ margin: 0 }}>Settings</h2>
-                {/* Only owners can change these; staff get a read-only view.
-                    The API enforces it too (requireOwner on PATCH). */}
+                {/* Only owners can change the business settings; staff get a
+                    read-only view. The API enforces it too (requireOwner on
+                    PATCH). Staff still edit their own name via the link below. */}
                 {me.role === 'owner' && (
                   <button
                     type="button"
                     className="btn btn-primary"
                     style={{ fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}
-                    onClick={() => {
-                      setSaved(false);
-                      setMode('edit');
-                    }}
+                    onClick={enterEditMode}
                   >
                     <Pencil size={14} /> Edit
                   </button>
@@ -219,35 +274,19 @@ export function Settings() {
                   borderTop: '1px solid var(--color-divider)',
                 }}
               >
-                <div className="field">
-                  <label htmlFor="your-name">Your name</label>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <input
-                      id="your-name"
-                      className="input"
-                      placeholder="First name"
-                      maxLength={60}
-                      value={nameInput}
-                      onChange={(e) => setNameInput(e.target.value)}
-                      style={{ flex: 1 }}
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      disabled={nameStatus === 'saving' || nameInput.trim() === (me.name ?? '')}
-                      onClick={handleSaveName}
-                    >
-                      {nameStatus === 'saving' ? 'Saving…' : nameStatus === 'saved' ? 'Saved' : 'Save'}
-                    </button>
-                  </div>
-                  {nameStatus === 'error' ? (
-                    <p role="alert" style={{ margin: '6px 0 0', fontSize: 12, color: 'var(--color-accent-700)' }}>
-                      Could not save your name. Try again.
-                    </p>
+                <div>
+                  <div style={{ fontSize: 12, color: 'var(--color-neutral-500)', marginBottom: 4 }}>First name</div>
+                  {me.name ? (
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 19, fontWeight: 700, color: 'var(--color-text)' }}>{me.name}</span>
+                      <button type="button" onClick={enterEditMode} style={{ ...linkButtonStyle, fontSize: 13 }}>
+                        edit name
+                      </button>
+                    </div>
                   ) : (
-                    <p className="text-muted" style={{ margin: '6px 0 0', fontSize: 12 }}>
-                      Shown to your team instead of your email once set.
-                    </p>
+                    <button type="button" onClick={enterEditMode} style={{ ...linkButtonStyle, fontSize: 14 }}>
+                      Add first name
+                    </button>
                   )}
                 </div>
 
