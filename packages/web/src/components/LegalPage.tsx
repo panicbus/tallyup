@@ -1,5 +1,6 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
+import { getMe } from '../lib/api';
 
 interface LegalPageProps {
   title: string;
@@ -9,10 +10,21 @@ interface LegalPageProps {
 
 /** Readable single-column layout for Terms and Privacy. */
 export function LegalPage({ title, updated, children }: LegalPageProps) {
+  // Back to the landing page for a visitor, back to their dashboard for a
+  // signed-in user. Defaults to the landing page until getMe() resolves.
+  const [backTo, setBackTo] = useState('/');
+  useEffect(() => {
+    getMe()
+      .then((me) => {
+        if (me) setBackTo(`/dashboard/${me.business.slug}`);
+      })
+      .catch(() => {});
+  }, []);
+
   return (
     <div className="page">
       <div className="page-content" style={{ maxWidth: 680 }}>
-        <Link to="/" style={{ fontSize: 13, alignSelf: 'flex-start', color: 'var(--color-accent-700)' }}>
+        <Link to={backTo} style={{ fontSize: 13, alignSelf: 'flex-start', color: 'var(--color-accent-700)' }}>
           ← Back
         </Link>
         <h1 style={{ margin: '0 0 2px' }}>{title}</h1>
