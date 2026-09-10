@@ -102,21 +102,33 @@ export function Settings() {
             ← Back to queue
           </button>
 
-          {mode === 'view' ? (
+          {mode === 'edit' && me.role === 'owner' ? (
+            <SettingsForm
+              business={me.business}
+              onSubmit={handleSubmit}
+              submitting={submitting}
+              saved={saved}
+              error={error}
+            />
+          ) : (
             <>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <h2 style={{ margin: 0 }}>Settings</h2>
-                <button
-                  type="button"
-                  className="btn btn-primary"
-                  style={{ fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}
-                  onClick={() => {
-                    setSaved(false);
-                    setMode('edit');
-                  }}
-                >
-                  <Pencil size={14} /> Edit
-                </button>
+                {/* Only owners can change these; staff get a read-only view.
+                    The API enforces it too (requireOwner on PATCH). */}
+                {me.role === 'owner' && (
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}
+                    onClick={() => {
+                      setSaved(false);
+                      setMode('edit');
+                    }}
+                  >
+                    <Pencil size={14} /> Edit
+                  </button>
+                )}
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div className="field-grid-2">
@@ -180,14 +192,6 @@ export function Settings() {
                 Sign out
               </button>
             </>
-          ) : (
-            <SettingsForm
-              business={me.business}
-              onSubmit={handleSubmit}
-              submitting={submitting}
-              saved={saved}
-              error={error}
-            />
           )}
         </div>
       </div>
