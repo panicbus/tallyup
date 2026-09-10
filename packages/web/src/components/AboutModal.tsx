@@ -28,13 +28,13 @@ export function AboutModal({ onClose }: AboutModalProps) {
           <h2 style={{ margin: 0, fontSize: 20 }}>About TallyUp</h2>
 
           <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>
-            TallyUp is a digital loyalty punch card for small shops. No plastic cards, and nothing
+            TallyUp is a digital loyalty program for small businesses. No paper cards, no hole punch, nothing
             for your customers to install.
           </p>
           <p style={{ margin: 0, fontSize: 14, lineHeight: 1.6 }}>
             A customer scans your shop's QR code at the counter to check in, and a staff member
             confirms it on the dashboard. After a set number of visits, they've earned the reward
-            you chose.
+            you chose and you deliver it.
           </p>
 
           <div
