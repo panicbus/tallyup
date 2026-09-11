@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { QrCode, Smartphone, Gift } from 'lucide-react';
 import { LegalLinks } from '../components/LegalLinks';
+import { Logo } from '../components/Logo';
 import { supabaseClient } from '../lib/supabase';
 import { getMe } from '../lib/api';
 
@@ -47,7 +48,7 @@ export function Landing() {
   return (
     <div className="page">
       <div className="page-content" style={{ alignItems: 'center', textAlign: 'center', gap: 22, paddingTop: 48 }}>
-        <img src="/logo.svg" alt="" width={80} height={80} />
+        <Logo size={80} />
         <div>
           <h1 style={{ margin: '0 0 6px' }}>TallyUp</h1>
           <p className="text-muted" style={{ margin: 0, fontSize: 16 }}>The punch card, without the paper.</p>

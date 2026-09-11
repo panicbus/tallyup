@@ -96,7 +96,12 @@
   --color-accent-2: #d9b46a;
   --color-divider: color-mix(in srgb, var(--color-text) 16%, transparent);
 
-  --color-neutral-100: #22302f;
+  /* Bumped up from the design's literal #22302f anchor: this is the only
+     step the ramp uses for a badge that floats directly on --color-bg
+     (.tag-neutral, e.g. the "Waiting now" count) rather than inside a card
+     — at the spec'd value it was nearly indistinguishable from the page
+     background. */
+  --color-neutral-100: #33434c;
   --color-neutral-200: #3b4848;
   --color-neutral-300: #566262;
   --color-neutral-400: #727d7d;

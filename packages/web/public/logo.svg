@@ -7,7 +7,7 @@
   </g>
 
   <!-- card outline -->
-  <rect x="16" y="34" width="68" height="46" rx="11" stroke="#201e1d" stroke-width="7" />
+  <rect x="16" y="34" width="68" height="46" rx="11" stroke="#201e1d" stroke-width="6" />
 
   <!-- punch dots -->
   <g fill="#8fa073">
