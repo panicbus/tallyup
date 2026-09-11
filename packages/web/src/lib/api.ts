@@ -331,6 +331,37 @@ export async function lookupInvite(code: string): Promise<InviteDescription | nu
   return response.json();
 }
 
+/** One shop's punch card as the public phone lookup returns it. Every field
+ * but `points` is already public through BusinessSummary — see
+ * CustomerCardBalance in the api's check-in-port.ts. */
+export interface CustomerCard {
+  businessName: string;
+  businessSlug: string;
+  logoUrl: string | null;
+  rewardThreshold: number;
+  rewardDescription: string;
+  points: number;
+  eligibleForRedemption: boolean;
+}
+
+/** Unauthenticated: anyone who knows the number can call this. Never
+ * returns null/undefined for "no history" — an unknown number is just an
+ * empty list, not an error, so the caller can't distinguish it from a real
+ * customer with zero cards. The page validates the phone with phoneSchema
+ * before ever calling this, so a 400 here means that validation drifted
+ * from the server's and is a real error, not an outcome to swallow. See
+ * ADR-0004 for why this endpoint exists at all. */
+export async function lookupCards(phone: string): Promise<CustomerCard[]> {
+  const response = await fetch(`${API_URL}/cards/lookup`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ phone }),
+  });
+  if (!response.ok) throw new Error(`Failed to look up punch cards (${response.status})`);
+  const body = await response.json();
+  return body.cards;
+}
+
 export async function revokeInvite(inviteId: string): Promise<void> {
   const response = await fetch(`${API_URL}/invites/${inviteId}/revoke`, {
     method: 'POST',

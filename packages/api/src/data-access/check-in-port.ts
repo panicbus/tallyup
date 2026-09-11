@@ -34,6 +34,20 @@ export interface CheckinStatusCustomer {
   points: number;
 }
 
+/** One shop's punch card as the public phone lookup returns it. Every field
+ * but `points` is already public through findBusinessBySlug, so the balance
+ * is the only thing this endpoint newly discloses. Never the phone: the
+ * caller already supplied it, and echoing it back would make the response
+ * worth stealing. */
+export interface CustomerCardBalance {
+  businessName: string;
+  businessSlug: string;
+  logoUrl: string | null;
+  rewardThreshold: number;
+  rewardDescription: string;
+  points: number;
+}
+
 /** One row of the staff-facing customer roster. Returns the raw phone —
  * masking is a services/ concern, same convention as QueuedPendingCheckin. */
 export interface CustomerRosterEntry {
@@ -115,6 +129,13 @@ export interface CheckInPort {
    * bound this would otherwise be a permanent, unauthenticated read of the
    * customer's current points balance. */
   getCheckinStatus(pendingCheckinId: string): Promise<CheckinStatusResult>;
+  /** The public phone-number punch-card lookup — every business this phone
+   * has any points history at, ordered by name. Public and unauthenticated,
+   * same doctrine as getCheckinStatus: the response carries nothing an
+   * id-holder (here, a phone-holder) shouldn't be able to read back out. An
+   * unknown phone returns [], never a 404 — "no customer anywhere" and "a
+   * customer with nothing to show" must be indistinguishable from outside. */
+  findCardsByPhone(phone: string): Promise<CustomerCardBalance[]>;
   /** Tenant-isolation lookups: which business a resource belongs to, so a
    * route can 403 a staff member acting outside their own business before
    * confirmCheckin/redeem ever run. Null if the resource doesn't exist. */

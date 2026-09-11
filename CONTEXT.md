@@ -47,10 +47,22 @@ re-inviting, and no way to change an existing Staff member's role. See
 Someone earning points at one Business, identified by phone number, normalized
 to E.164. Scoped per Business — the same phone at two shops is two Customers
 with independent balances. Staff-facing views only ever see a **masked phone**
-(`•••-•••-4567`). The public, unauthenticated check-in status poll (the
-customer's own device) never receives a phone number at all — it already
-knows its own — and only reports a confirmed result for a short window after
-confirmation, since pending-checkin ids are never deleted.
+(`•••-•••-4567`), except for a Customer who opted in to text messages, whose
+full number is shown to staff and included in exports. The public,
+unauthenticated check-in status poll (the customer's own device) never
+receives a phone number at all — it already knows its own — and only reports
+a confirmed result for a short window after confirmation, since pending-
+checkin ids are never deleted.
+
+A Customer can also look up their own punch balance at every Business, before
+ever visiting one, by typing their phone number at `POST /cards/lookup`
+(`/card` on the web). This is deliberately the one public route keyed by a
+guessable value rather than an unguessable id — see
+[ADR-0004](docs/adr/0004-public-punch-card-lookup-by-phone.md). The response
+is minimized accordingly: a shop name, reward terms, and a point count, never
+a phone number, name, or visit history. An unknown phone returns an empty
+list, never a 404 — "no Customer anywhere" and "a Customer with nothing to
+show" are the same response from outside.
 
 ## Pending check-in
 

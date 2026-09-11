@@ -1,6 +1,13 @@
 import type { ExpressionBuilder, Kysely } from 'kysely';
 import type { Database } from './types.js';
-import type { Business, CheckInPort, ConfirmCheckinResult, CustomerRosterEntry, RedeemResult } from './check-in-port.js';
+import type {
+  Business,
+  CheckInPort,
+  ConfirmCheckinResult,
+  CustomerCardBalance,
+  CustomerRosterEntry,
+  RedeemResult,
+} from './check-in-port.js';
 
 const PENDING_CHECKIN_TTL_MS = 20 * 60_000;
 // How long the customer-facing status poll keeps reporting `confirmed`
@@ -288,6 +295,35 @@ export function createKyselyCheckInPort(db: Kysely<Database>): CheckInPort {
       }
 
       return { status: 'pending', expiresAt: new Date(pending.expires_at) };
+    },
+
+    async findCardsByPhone(phone): Promise<CustomerCardBalance[]> {
+      // customers is unique on (business_id, phone) — business_id is the
+      // leading column, so this where-only-on-phone query is backed by the
+      // dedicated customers_phone_idx (migration 0015), not that index.
+      const rows = await db
+        .selectFrom('customers')
+        .innerJoin('businesses', 'businesses.id', 'customers.business_id')
+        .select([
+          'businesses.name as business_name',
+          'businesses.slug as business_slug',
+          'businesses.logo_url as logo_url',
+          'businesses.reward_threshold as reward_threshold',
+          'businesses.reward_description as reward_description',
+          'customers.points as points',
+        ])
+        .where('customers.phone', '=', phone)
+        .orderBy('businesses.name', 'asc')
+        .execute();
+
+      return rows.map((row) => ({
+        businessName: row.business_name,
+        businessSlug: row.business_slug,
+        logoUrl: row.logo_url,
+        rewardThreshold: row.reward_threshold,
+        rewardDescription: row.reward_description,
+        points: row.points,
+      }));
     },
 
     async findPendingCheckinBusinessId(pendingCheckinId) {

@@ -3,6 +3,7 @@ import { Analytics } from '@vercel/analytics/react';
 import { Landing } from './pages/Landing';
 import { Dashboard } from './pages/Dashboard';
 import { CheckIn } from './pages/CheckIn';
+import { Card } from './pages/Card';
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { ForgotPassword } from './pages/ForgotPassword';
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/dashboard/:slug/settings" element={<Settings />} />
         <Route path="/dashboard/:slug/staff" element={<StaffManagement />} />
         <Route path="/checkin/:slug" element={<CheckIn />} />
+        <Route path="/card" element={<Card />} />
         <Route path="/terms" element={<Terms />} />
         <Route path="/privacy" element={<Privacy />} />
       </Routes>

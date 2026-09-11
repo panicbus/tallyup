@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { phoneSchema, smsConsentLanguageV1 } from '@tallyup/shared';
-import { formatUsPhoneInput } from '../lib/format';
+import { PhoneField } from './PhoneField';
 
 interface CheckInFormProps {
   onSubmit: (phone: string, smsConsent: boolean) => void;
@@ -32,25 +32,7 @@ export function CheckInForm({ onSubmit, submitting, businessName, isPhoneKnownCo
 
   return (
     <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14, flex: 1 }}>
-      <div className="field">
-        <label htmlFor="phone">Phone number</label>
-        <input
-          id="phone"
-          className="input"
-          style={{ fontSize: 17, padding: '14px 16px' }}
-          type="tel"
-          inputMode="tel"
-          autoComplete="tel"
-          placeholder="(555) 555-1234"
-          value={phone}
-          onChange={(e) => setPhone(formatUsPhoneInput(e.target.value))}
-        />
-        {error && (
-          <p role="alert" style={{ color: 'var(--color-accent-700)', fontSize: 13, margin: '8px 0 0' }}>
-            {error}
-          </p>
-        )}
-      </div>
+      <PhoneField value={phone} onChange={setPhone} error={error} />
       {!consentKnown && (
         <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, fontSize: 13, cursor: 'pointer' }}>
           <input

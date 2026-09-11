@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import type { Business, CheckInPort } from '../data-access/check-in-port.js';
+import type { Business, CheckInPort, CustomerCardBalance } from '../data-access/check-in-port.js';
 
 const PENDING_CHECKIN_TTL_MS = 20 * 60_000;
 // Mirrors kysely-check-in-port.ts's CONFIRMED_STATUS_VISIBILITY_MS — kept as
@@ -10,6 +10,17 @@ const CONFIRMED_STATUS_VISIBILITY_MS = 5 * 60_000;
 
 interface StoredBusiness extends Business {
   slug: string;
+}
+
+function cardView(business: StoredBusiness, points: number): CustomerCardBalance {
+  return {
+    businessName: business.name,
+    businessSlug: business.slug,
+    logoUrl: business.logoUrl,
+    rewardThreshold: business.rewardThreshold,
+    rewardDescription: business.rewardDescription,
+    points,
+  };
 }
 
 interface StoredPendingCheckin {
@@ -189,6 +200,19 @@ export function createInMemoryCheckInPort() {
       }
 
       return { status: 'pending', expiresAt: pending.expiresAt };
+    },
+
+    async findCardsByPhone(phone) {
+      return [...customers.values()]
+        .filter((c) => c.phone === phone)
+        .map((c) => {
+          const business = businesses.get(c.businessId);
+          if (!business) {
+            throw new Error(`no business seeded for id ${c.businessId}`);
+          }
+          return cardView(business, c.points);
+        })
+        .sort((a, b) => a.businessName.localeCompare(b.businessName));
     },
 
     async findPendingCheckinBusinessId(pendingCheckinId) {

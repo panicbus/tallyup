@@ -4,6 +4,7 @@ import { phoneSchema, smsConsentLanguageV1 } from '@tallyup/shared';
 import { confirmCheckin, listPendingCheckins } from '../services/check-in.js';
 import { redeem } from '../services/redemption.js';
 import { getCheckinStatus } from '../services/checkin-status.js';
+import { getCustomerCards } from '../services/customer-cards.js';
 import { requireStaff } from './require-staff.js';
 import {
   ownerByCustomerParam,
@@ -21,6 +22,8 @@ const createPendingCheckinBodySchema = z.object({
   // the stored "evidence" would just be whatever text an attacker chose.
   smsConsent: z.boolean().optional().default(false),
 });
+
+const lookupCardsBodySchema = z.object({ phone: phoneSchema });
 
 export async function checkInRoutes(app: FastifyInstance, deps: AppDependencies): Promise<void> {
   app.get('/businesses/:slug', async (request, reply) => {
@@ -96,6 +99,30 @@ export async function checkInRoutes(app: FastifyInstance, deps: AppDependencies)
 
     return reply.code(200).send(result);
   });
+
+  app.post(
+    '/cards/lookup',
+    // Public, unauthenticated, and keyed by a guessable phone number rather
+    // than an unguessable id — a deliberate reversal of that norm (see
+    // ADR-0004). POST, not GET, so the number never lands in Fastify's
+    // request-URL logs; no-store so it's never cached anywhere in between.
+    // This 10/min-per-IP limit is a speed bump against bulk sweeps, not a
+    // defense against someone targeting one number they already know.
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const parsedBody = lookupCardsBodySchema.safeParse(request.body);
+      if (!parsedBody.success) {
+        return reply.code(400).send({ error: 'invalid_phone' });
+      }
+
+      const cards = await getCustomerCards(deps.checkInPort, parsedBody.data.phone);
+
+      // Never 404: "no customer anywhere" and "a customer with nothing to
+      // show" must be the same response from outside, same reasoning as
+      // /customers/:id/redeem's missing:'allow'.
+      return reply.header('cache-control', 'no-store').code(200).send({ cards });
+    },
+  );
 
   app.get(
     '/businesses/:slug/pending-checkins',

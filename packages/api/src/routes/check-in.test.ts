@@ -322,6 +322,73 @@ describe('GET /businesses/:slug', () => {
   });
 });
 
+describe('POST /cards/lookup', () => {
+  it('returns a card for each shop the phone has points at', async () => {
+    const { port, seedBusiness } = createInMemoryCheckInPort();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10, name: 'Test Shop' });
+    const pending = await port.createPendingCheckin({ businessId: business.id, phone: '+15551234567' });
+    await port.confirmCheckin({ pendingCheckinId: pending.id, confirmedBy: randomUUID() });
+    const { app } = buildTestApp(port);
+
+    const response = await app.inject({ method: 'POST', url: '/cards/lookup', payload: { phone: '555-123-4567' } });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      cards: [
+        {
+          businessName: 'Test Shop',
+          businessSlug: 'test-shop',
+          logoUrl: null,
+          rewardThreshold: 10,
+          rewardDescription: business.rewardDescription,
+          points: 1,
+          eligibleForRedemption: false,
+        },
+      ],
+    });
+  });
+
+  it('returns an empty list for a phone with no history — never a 404', async () => {
+    const { port } = createInMemoryCheckInPort();
+    const { app } = buildTestApp(port);
+
+    const response = await app.inject({ method: 'POST', url: '/cards/lookup', payload: { phone: '555-999-0000' } });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({ cards: [] });
+  });
+
+  it('rejects an invalid phone number', async () => {
+    const { port } = createInMemoryCheckInPort();
+    const { app } = buildTestApp(port);
+
+    const response = await app.inject({ method: 'POST', url: '/cards/lookup', payload: { phone: 'not a phone' } });
+
+    expect(response.statusCode).toBe(400);
+  });
+
+  it('sets cache-control: no-store', async () => {
+    const { port } = createInMemoryCheckInPort();
+    const { app } = buildTestApp(port);
+
+    const response = await app.inject({ method: 'POST', url: '/cards/lookup', payload: { phone: '555-999-0000' } });
+
+    expect(response.headers['cache-control']).toBe('no-store');
+  });
+
+  it('never includes the phone number anywhere in the response body', async () => {
+    const { port, seedBusiness } = createInMemoryCheckInPort();
+    const business = await seedBusiness({ slug: 'test-shop', rewardThreshold: 10 });
+    const pending = await port.createPendingCheckin({ businessId: business.id, phone: '+15551234567' });
+    await port.confirmCheckin({ pendingCheckinId: pending.id, confirmedBy: randomUUID() });
+    const { app } = buildTestApp(port);
+
+    const response = await app.inject({ method: 'POST', url: '/cards/lookup', payload: { phone: '555-123-4567' } });
+
+    expect(JSON.stringify(response.json())).not.toContain('4567');
+  });
+});
+
 describe('GET /pending-checkins/:id/status', () => {
   it('reports pending before confirmation', async () => {
     const { port, seedBusiness } = createInMemoryCheckInPort();

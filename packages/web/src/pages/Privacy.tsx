@@ -20,8 +20,16 @@ export function Privacy() {
       <h2>How we use it</h2>
       <p>
         To run the punch card: showing your staff the check-in queue, tracking points, and letting you see and export
-        your own customer list. Phone numbers are shown to staff in masked form (last four digits) everywhere except
-        the moment of check-in.
+        your own customer list. Phone numbers are shown to staff in masked form (last four digits), except at the
+        moment of check-in and for a customer who has opted in to text messages, whose full number is shown to staff
+        and included in exports.
+      </p>
+
+      <h2>Checking a punch balance</h2>
+      <p>
+        A customer can look up their own punch balance at any TallyUp shop by entering their phone number, no
+        account needed. Anyone who knows that number can do the same lookup. That page only ever shows a shop name
+        and a punch count. It never shows a name, an address, when someone visited, or any way to contact them.
       </p>
 
       <h2>What we don't do</h2>
@@ -39,8 +47,8 @@ export function Privacy() {
 
       <h2>Deleting your data</h2>
       <p>
-        Ask us to delete your business and we'll remove it and its customer records. A customer who wants their number
-        removed can ask you, and you can remove them from your roster.
+        Ask us to delete your business and we'll remove it and its customer records. A customer who wants their
+        number removed can ask you, and you can pass that request along to us.
       </p>
 
       <h2>Contact</h2>

@@ -107,6 +107,9 @@ export function Landing() {
         <Link to="/checkin/demo" style={{ fontSize: 13 }}>
           See the customer view →
         </Link>
+        <Link to="/card" style={{ fontSize: 13 }}>
+          Check my punches
+        </Link>
 
         <LegalLinks />
       </div>

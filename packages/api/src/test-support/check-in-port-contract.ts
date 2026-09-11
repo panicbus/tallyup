@@ -24,6 +24,17 @@ export interface CheckInPortContractSetup {
 // no arguments.
 type TestFn<Fixtures> = (name: string, fn: (fixtures: Fixtures) => Promise<void>) => void;
 
+// findCardsByPhone's tests assert the exact set of cards a phone number
+// returns across every business — unlike every other test in this suite,
+// which scopes its assertions to one freshly seeded business and so is
+// immune to the fixed literal phones (+15551230NNN) used everywhere else.
+// The real adapter's realDb fixture is never rolled back between runs, so
+// a fixed phone there would pick up rows any earlier run left behind.
+function uniquePhone(): string {
+  const digits = Math.floor(1_000_000 + Math.random() * 8_000_000).toString();
+  return `+1555${digits}`;
+}
+
 /**
  * Behavioral assertions run against any CheckInPort implementation. Invoked
  * once for the in-memory fake and once for the real Kysely adapter so
@@ -274,6 +285,74 @@ export function runCheckInPortContractTests<Fixtures extends { realDb?: unknown 
       const status = await port.getCheckinStatus(crypto.randomUUID());
 
       expect(status).toEqual({ status: 'not_found' });
+    });
+
+    test('findCardsByPhone returns one card per shop the phone has points at', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const slugA = `contract-a-${crypto.randomUUID()}`;
+      const slugB = `contract-b-${crypto.randomUUID()}`;
+      const businessA = await seedBusiness({ slug: slugA, rewardThreshold: 10 });
+      const businessB = await seedBusiness({ slug: slugB, rewardThreshold: 5 });
+      const phone = uniquePhone();
+      await checkInNTimes(port, businessA, phone, 3);
+      await checkInNTimes(port, businessB, phone, 1);
+
+      const cards = await port.findCardsByPhone(phone);
+
+      expect(cards).toHaveLength(2);
+      const cardA = cards.find((c) => c.businessSlug === slugA);
+      const cardB = cards.find((c) => c.businessSlug === slugB);
+      expect(cardA).toMatchObject({
+        businessName: businessA.name,
+        rewardThreshold: 10,
+        rewardDescription: businessA.rewardDescription,
+        points: 3,
+      });
+      expect(cardB).toMatchObject({
+        businessName: businessB.name,
+        rewardThreshold: 5,
+        rewardDescription: businessB.rewardDescription,
+        points: 1,
+      });
+      // Never echoes the phone back — the response must not be worth
+      // stealing on its own.
+      expect(cards[0]).not.toHaveProperty('phone');
+    });
+
+    test('findCardsByPhone returns [] for a phone with no history, not an error', async ({ realDb }) => {
+      const { port } = await createSetup({ realDb } as Fixtures);
+
+      expect(await port.findCardsByPhone(uniquePhone())).toEqual([]);
+    });
+
+    test('findCardsByPhone reflects a balance after redemption, not just lifetime visits', async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const slug = `contract-${crypto.randomUUID()}`;
+      const business = await seedBusiness({ slug, rewardThreshold: 3 });
+      const phone = uniquePhone();
+      const customerId = await checkInNTimes(port, business, phone, 3);
+      await port.redeem({ customerId, confirmedBy: business.confirmedBy });
+
+      const cards = await port.findCardsByPhone(phone);
+
+      expect(cards).toEqual([
+        {
+          businessName: business.name,
+          businessSlug: slug,
+          logoUrl: null,
+          rewardThreshold: 3,
+          rewardDescription: business.rewardDescription,
+          points: 0,
+        },
+      ]);
+    });
+
+    test("findCardsByPhone never returns a different phone's cards", async ({ realDb }) => {
+      const { port, seedBusiness } = await createSetup({ realDb } as Fixtures);
+      const business = await seedBusiness({ slug: `contract-${crypto.randomUUID()}`, rewardThreshold: 10 });
+      await checkInNTimes(port, business, uniquePhone(), 1);
+
+      expect(await port.findCardsByPhone(uniquePhone())).toEqual([]);
     });
 
     test('findPendingCheckinBusinessId resolves the owning business', async ({ realDb }) => {

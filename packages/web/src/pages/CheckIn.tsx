@@ -259,6 +259,11 @@ export function CheckIn() {
             <p className="text-muted" style={{ margin: 0, fontSize: 13, textAlign: 'center' }}>
               Scan the code again on your next visit.
             </p>
+            {!isDemo && (
+              <Link to="/card" style={{ fontSize: 13 }}>
+                Check your punches at every shop →
+              </Link>
+            )}
           </div>
         )}
 

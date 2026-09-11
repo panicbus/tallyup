@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import type { Kysely } from 'kysely';
 import { describe, expect, test } from '../test-support/integration-test.js';
 import { buildApp } from '../app.js';
@@ -33,6 +33,15 @@ async function seedBusinessAndStaff(db: Kysely<Database>, rewardThreshold = 10) 
     .executeTakeFirstOrThrow();
 
   return { business, staff, authUserId };
+}
+
+// Unlike other tests in this file, the /cards/lookup tests assert an exact
+// count of cards for one phone — the fixed 555-999-00XX numbers other tests
+// use are fine there because they never count globally, but realDb writes
+// are never rolled back, so a shared phone here would pick up rows left by
+// every earlier run against this same test database.
+function uniquePhone(): string {
+  return `555${randomInt(1_000_000, 9_999_999)}`;
 }
 
 function buildAuthedApp(realDb: Kysely<Database>) {
@@ -230,6 +239,74 @@ describe('check-in fraud gate, end to end via HTTP', () => {
       headers: headersB,
     });
     expect(redeemAsOtherBusiness.statusCode).toBe(403);
+  });
+});
+
+describe('POST /cards/lookup, end to end via HTTP', () => {
+  test('returns a card for every shop confirmed for the same phone', async ({ realDb }) => {
+    const { business: businessA, authUserId: authA } = await seedBusinessAndStaff(realDb, 10);
+    const { business: businessB, authUserId: authB } = await seedBusinessAndStaff(realDb, 5);
+    const { app, issueToken } = buildAuthedApp(realDb);
+    const headersA = { authorization: `Bearer ${issueToken({ userId: authA, email: 'staff-a@example.com' })}` };
+    const headersB = { authorization: `Bearer ${issueToken({ userId: authB, email: 'staff-b@example.com' })}` };
+    const phone = uniquePhone();
+
+    const pendingA = (
+      await app.inject({
+        method: 'POST',
+        url: `/businesses/${businessA.slug}/pending-checkins`,
+        payload: { phone },
+      })
+    ).json();
+    await app.inject({ method: 'POST', url: `/pending-checkins/${pendingA.id}/confirm`, headers: headersA });
+
+    const pendingB = (
+      await app.inject({
+        method: 'POST',
+        url: `/businesses/${businessB.slug}/pending-checkins`,
+        payload: { phone },
+      })
+    ).json();
+    await app.inject({ method: 'POST', url: `/pending-checkins/${pendingB.id}/confirm`, headers: headersB });
+
+    const lookup = await app.inject({ method: 'POST', url: '/cards/lookup', payload: { phone } });
+
+    expect(lookup.statusCode).toBe(200);
+    const { cards } = lookup.json();
+    expect(cards).toHaveLength(2);
+    expect(cards.find((c: { businessSlug: string }) => c.businessSlug === businessA.slug)).toMatchObject({
+      points: 1,
+      rewardThreshold: 10,
+    });
+    expect(cards.find((c: { businessSlug: string }) => c.businessSlug === businessB.slug)).toMatchObject({
+      points: 1,
+      rewardThreshold: 5,
+    });
+  });
+
+  test('returns an empty list for a phone with no history', async ({ realDb }) => {
+    await seedBusinessAndStaff(realDb);
+    const { app } = buildAuthedApp(realDb);
+
+    const lookup = await app.inject({ method: 'POST', url: '/cards/lookup', payload: { phone: uniquePhone() } });
+
+    expect(lookup.statusCode).toBe(200);
+    expect(lookup.json()).toEqual({ cards: [] });
+  });
+
+  test('lookup is rate-limited per IP', async ({ realDb }) => {
+    await seedBusinessAndStaff(realDb);
+    const { app } = buildAuthedApp(realDb);
+
+    const phone = uniquePhone();
+    const responses = [];
+    for (let i = 0; i < 11; i++) {
+      responses.push(await app.inject({ method: 'POST', url: '/cards/lookup', payload: { phone } }));
+    }
+
+    const statusCodes = responses.map((r) => r.statusCode);
+    expect(statusCodes.filter((code) => code === 200).length).toBe(10);
+    expect(statusCodes.filter((code) => code === 429).length).toBe(1);
   });
 });
 
