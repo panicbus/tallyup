@@ -55,7 +55,7 @@ export function InfoTip({ children, label = 'More info' }: { children: ReactNode
             fontSize: 12.5,
             lineHeight: 1.5,
             color: 'var(--color-text)',
-            background: '#fff',
+            background: 'var(--color-surface)',
             border: '1px solid var(--color-divider)',
             borderRadius: 'var(--radius-sm)',
             boxShadow: 'var(--shadow-md)',

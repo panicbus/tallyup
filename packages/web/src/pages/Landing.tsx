@@ -85,7 +85,7 @@ export function Landing() {
                   width: 40,
                   height: 40,
                   borderRadius: 12,
-                  background: '#fff',
+                  background: 'var(--color-surface)',
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',

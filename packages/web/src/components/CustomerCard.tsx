@@ -48,7 +48,7 @@ export function CustomerCard({
           className="elev-lg"
           style={{
             position: 'relative',
-            background: '#fff',
+            background: 'var(--color-surface)',
             backgroundImage: eligibleForRedemption
               ? 'repeating-linear-gradient(45deg, rgba(0,0,0,0.02) 0px, rgba(0,0,0,0.02) 1px, transparent 1px, transparent 3px), repeating-linear-gradient(-45deg, rgba(0,0,0,0.02) 0px, rgba(0,0,0,0.02) 1px, transparent 1px, transparent 3px)'
               : undefined,

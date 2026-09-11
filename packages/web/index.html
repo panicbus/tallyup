@@ -7,13 +7,34 @@
     <link rel="icon" type="image/svg+xml" href="/logo.svg" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-    <meta name="theme-color" content="#f5ead8" />
+    <meta name="theme-color" content="#eef1f6" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
       href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=Archivo:wght@400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <script>
+      // Paint the right theme before first render, so a returning dark-mode
+      // visitor doesn't see a flash of the light page. Mirrors
+      // src/lib/theme.ts's own logic; kept inline (and in sync by hand,
+      // since this runs before any module script loads) rather than
+      // imported, for that one reason.
+      (function () {
+        try {
+          var stored = localStorage.getItem('tallyup:theme');
+          var theme =
+            stored === 'light' || stored === 'dark'
+              ? stored
+              : window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light';
+          document.documentElement.setAttribute('data-theme', theme);
+        } catch (e) {
+          document.documentElement.setAttribute('data-theme', 'light');
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

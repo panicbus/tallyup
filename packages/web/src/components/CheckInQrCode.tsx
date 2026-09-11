@@ -34,7 +34,7 @@ export function CheckInQrCode({ slug, size = 164 }: Props) {
       const ctx = canvas.getContext('2d');
       URL.revokeObjectURL(svgUrl);
       if (!ctx) return;
-      ctx.fillStyle = '#fff';
+      ctx.fillStyle = '#fff'; // scan contrast, not a theme color — see the frame above
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
       canvas.toBlob((blob) => {
@@ -62,6 +62,9 @@ export function CheckInQrCode({ slug, size = 164 }: Props) {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          // Hardcoded white, not var(--color-surface): a scanner needs real
+          // contrast against the QR's black modules, in print and in dark
+          // mode alike, so this frame stays white regardless of theme.
           border: '8px solid #fff',
           background: '#fff',
         }}

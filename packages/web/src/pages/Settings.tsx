@@ -7,6 +7,7 @@ import { supabaseClient } from '../lib/supabase';
 import { SettingsForm, type SettingsFormValues } from '../components/SettingsForm';
 import { CheckInQrCode } from '../components/CheckInQrCode';
 import { StaffHeader } from '../components/StaffHeader';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 type Mode = 'view' | 'edit';
 
@@ -196,19 +197,22 @@ export function Settings() {
             <>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <h2 style={{ margin: 0 }}>Settings</h2>
-                {/* Only owners can change the business settings; staff get a
-                    read-only view. The API enforces it too (requireOwner on
-                    PATCH). Staff still edit their own name via the link below. */}
-                {me.role === 'owner' && (
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    style={{ fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}
-                    onClick={enterEditMode}
-                  >
-                    <Pencil size={14} /> Edit
-                  </button>
-                )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <ThemeToggle />
+                  {/* Only owners can change the business settings; staff get a
+                      read-only view. The API enforces it too (requireOwner on
+                      PATCH). Staff still edit their own name via the link below. */}
+                  {me.role === 'owner' && (
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      style={{ fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}
+                      onClick={enterEditMode}
+                    >
+                      <Pencil size={14} /> Edit
+                    </button>
+                  )}
+                </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
                 <div className="field-grid-2">

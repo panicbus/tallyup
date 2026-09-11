@@ -2,47 +2,58 @@
    system (design/organic-styles.css) with the screens file's own typography
    override applied directly rather than kept as a second layer:
    Space Grotesk (headings) / Archivo (body), not the system's own default
-   Caprasimo/Figtree. Source of truth: design/TallyUp Screens.dc.html. */
+   Caprasimo/Figtree. Source of truth: design/TallyUp Screens.dc.html.
+
+   Color palette: "Chalk & Indigo" (light, default) / "Slate & Coral" (dark),
+   spec'd in the Claude Design project "Tally Up color exploration"
+   (TallyUp Palettes.dc.html). The ramps below fill in every 100-900 step
+   the app's classes reference; the design only spec'd a handful of anchor
+   steps per ramp (the rest are OKLCH-interpolated between them, same method
+   noted in the source system: "generated in OKLCH on one shared lightness
+   scale"). Active theme is toggled by `data-theme` on <html> — see
+   src/lib/theme.ts and components/ThemeToggle.tsx — and mirrored to the
+   inline script in index.html so the right theme paints before first
+   render. */
 
 :root {
-  color-scheme: light dark;
+  color-scheme: light;
 
-  --color-bg: #f5ead8;
-  --color-surface: #ebddc5;
-  --color-text: #201e1d;
-  --color-accent: #c67139;
-  --color-accent-2: #7a8a5e;
-  --color-divider: color-mix(in srgb, #201e1d 16%, transparent);
+  --color-bg: #eef1f6;
+  --color-surface: #e2e7ef;
+  --color-text: #1c2230;
+  --color-accent: #4f5fd1;
+  --color-accent-2: #d98a4a;
+  --color-divider: color-mix(in srgb, var(--color-text) 14%, transparent);
 
-  --color-neutral-100: #f9f4ed;
-  --color-neutral-200: #eee7db;
-  --color-neutral-300: #dcd3c4;
-  --color-neutral-400: #c0b6a5;
-  --color-neutral-500: #a19786;
-  --color-neutral-600: #82796a;
-  --color-neutral-700: #645c50;
-  --color-neutral-800: #474238;
-  --color-neutral-900: #2e2b25;
+  --color-neutral-100: #e6e2da;
+  --color-neutral-200: #cbc7bf;
+  --color-neutral-300: #b1ada5;
+  --color-neutral-400: #97938c;
+  --color-neutral-500: #7f7b73;
+  --color-neutral-600: #67635b;
+  --color-neutral-700: #504c45;
+  --color-neutral-800: #3a362f;
+  --color-neutral-900: #211f1b;
 
-  --color-accent-100: #fff2eb;
-  --color-accent-200: #ffe1d0;
-  --color-accent-300: #ffc6a5;
-  --color-accent-400: #f6a06b;
-  --color-accent-500: #d67f48;
-  --color-accent-600: #b2622d;
-  --color-accent-700: #8c491a;
-  --color-accent-800: #643312;
-  --color-accent-900: #402310;
+  --color-accent-100: #e6e8fb;
+  --color-accent-200: #c1c9ee;
+  --color-accent-300: #9ea9df;
+  --color-accent-400: #7e8ad0;
+  --color-accent-500: #5f6ac0;
+  --color-accent-600: #3f4bb0;
+  --color-accent-700: #333c8f;
+  --color-accent-800: #242a66;
+  --color-accent-900: #161940;
 
-  --color-accent-2-100: #f0fae1;
-  --color-accent-2-200: #e1eecc;
-  --color-accent-2-300: #ccdbb2;
-  --color-accent-2-400: #aebf92;
-  --color-accent-2-500: #8fa073;
-  --color-accent-2-600: #728157;
-  --color-accent-2-700: #56633f;
-  --color-accent-2-800: #3d472b;
-  --color-accent-2-900: #272e1b;
+  --color-accent-2-100: #fbe8d6;
+  --color-accent-2-200: #e6ceb9;
+  --color-accent-2-300: #d1b59d;
+  --color-accent-2-400: #bc9c81;
+  --color-accent-2-500: #a78466;
+  --color-accent-2-600: #926d4b;
+  --color-accent-2-700: #7e5631;
+  --color-accent-2-800: #6b3f16;
+  --color-accent-2-900: #562a00;
 
   --font-heading: "Space Grotesk", system-ui, sans-serif;
   --font-heading-weight: 700;
@@ -59,13 +70,61 @@
   --radius-md: 16px;
   --radius-lg: 28px;
 
-  --shadow-sm: 0 1px 2px color-mix(in srgb, #2e2b25 14%, transparent);
-  --shadow-md: 0 3px 10px color-mix(in srgb, #2e2b25 16%, transparent);
-  --shadow-lg: 0 12px 32px color-mix(in srgb, #2e2b25 22%, transparent);
+  /* Tinted from --color-neutral-900 (not a hardcoded ink hex) so elevation
+     stays correct in dark mode too — that token flips per theme below. */
+  --shadow-sm: 0 1px 2px color-mix(in srgb, var(--color-neutral-900) 14%, transparent);
+  --shadow-md: 0 3px 10px color-mix(in srgb, var(--color-neutral-900) 16%, transparent);
+  --shadow-lg: 0 12px 32px color-mix(in srgb, var(--color-neutral-900) 22%, transparent);
 
   /* Not in the source design system — the mobile-first ceiling every page
      centers under until real desktop designs replace it (see Q5). */
   --page-max-width: 480px;
+}
+
+/* — dark mode: "Slate & Coral" — neutral-100/800 are intentionally
+   inverted relative to light mode (100 = dark tint near the page bg,
+   800 = light text-on-tag tone) so every class that uses them keeps its
+   semantic role — e.g. .tag-neutral's background/text pair, or
+   .avatar-btn's surface — without needing theme-specific class variants. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  --color-bg: #23303a;
+  --color-surface: #2c3c47;
+  --color-text: #f1ede4;
+  --color-accent: #ef7a5a;
+  --color-accent-2: #d9b46a;
+  --color-divider: color-mix(in srgb, var(--color-text) 16%, transparent);
+
+  --color-neutral-100: #22302f;
+  --color-neutral-200: #3b4848;
+  --color-neutral-300: #566262;
+  --color-neutral-400: #727d7d;
+  --color-neutral-500: #8f9999;
+  --color-neutral-600: #aeb6b6;
+  --color-neutral-700: #cdd3d3;
+  --color-neutral-800: #eef2f0;
+  --color-neutral-900: #101a20;
+
+  --color-accent-100: #ffe4da;
+  --color-accent-200: #f9cabb;
+  --color-accent-300: #f1b19c;
+  --color-accent-400: #e8987d;
+  --color-accent-500: #de7e5d;
+  --color-accent-600: #d4623f;
+  --color-accent-700: #ad4d2e;
+  --color-accent-800: #7a3319;
+  --color-accent-900: #4b1a09;
+
+  --color-accent-2-100: #faf1dc;
+  --color-accent-2-200: #e5d8bf;
+  --color-accent-2-300: #cfc0a4;
+  --color-accent-2-400: #baa988;
+  --color-accent-2-500: #a5926d;
+  --color-accent-2-600: #907b53;
+  --color-accent-2-700: #7c6539;
+  --color-accent-2-800: #6b4f1e;
+  --color-accent-2-900: #563c00;
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -138,7 +197,7 @@ img { display: block; max-width: 100%; }
      more legible field. */
   width: 100%; min-height: 44px; padding: 11px 14px; font: inherit;
   font-size: 16px; color: var(--color-text); caret-color: var(--color-accent);
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid var(--color-divider); border-radius: 999px;
 }
 .input:focus-visible { border-color: var(--color-accent); outline-offset: 0; }
@@ -302,7 +361,7 @@ input[type='number']::-webkit-outer-spin-button {
   font: inherit;
   font-size: 14px;
   color: var(--color-text);
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid var(--color-divider);
   border-radius: 999px;
   cursor: pointer;
@@ -316,7 +375,7 @@ input[type='number']::-webkit-outer-spin-button {
   z-index: 20;
   min-width: 100%;
   padding: 6px;
-  background: #fff;
+  background: var(--color-surface);
   border: 1px solid var(--color-divider);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
