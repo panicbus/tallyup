@@ -1,19 +1,46 @@
 name: Keep API awake
 
 # render.yaml's api service runs on Render's free plan, which spins the
-# service down after 15 minutes with no traffic — the next request then
-# eats a 30-60s cold start (that's the delay customers hit on check-in).
-# Pinging /health every 10 minutes keeps it from ever going idle, at no
-# cost, without upgrading off the free Render plan. Runs on GitHub's
-# schedule, which is free and unlimited on this public repo.
+# service down after 15 minutes with no traffic, and Render's own docs say
+# the first request after that can take 50+ seconds to respond while it
+# spins back up — that's the delay customers hit on check-in.
+#
+# This used to be a single `curl --max-time 20` per scheduled trigger, on
+# the assumption that GitHub fires `schedule` roughly every 10 minutes with
+# a few minutes of best-effort jitter. It doesn't: every run reported
+# success, but the actual gaps between runs were 2-4 hours, not 10 minutes
+# (catch-up-app's identical keep-alive.yml hit the exact same GitHub-side
+# under-delivery — this is not a bug in this file's cron expression).
+# With gaps that wide, the api was fully spun down between nearly every
+# ping, so the "success" runs were pinging a cold instance right as a real
+# user might, and it made no real difference.
+#
+# Fix: don't depend on GitHub firing every 10 minutes. Whenever the trigger
+# does fire (however sparsely), the job loops on its own, pinging every 5
+# minutes for up to ~5.5 hours — comfortably past the worst gap seen so far
+# — so one trigger bridges the gap until the next. `concurrency` cancels an
+# older loop if a new trigger lands while one is still running, so only one
+# is ever active.
 on:
   schedule:
     - cron: '*/10 * * * *'
   workflow_dispatch: {}
 
+concurrency:
+  group: keep-api-awake
+  cancel-in-progress: true
+
 jobs:
   ping:
     runs-on: ubuntu-latest
+    timeout-minutes: 360 # hard safety net; the loop below self-stops well before this
     steps:
-      - name: Ping /health
-        run: curl --fail --silent --show-error --max-time 20 --retry 2 --retry-delay 5 https://tallyup-api.onrender.com/health
+      - name: Ping /health every 5 minutes for ~5.5 hours
+        run: |
+          end=$((SECONDS + 330 * 60))
+          while [ "$SECONDS" -lt "$end" ]; do
+            curl -fsS --max-time 120 https://tallyup-api.onrender.com/health \
+              && echo "$(date -u +%FT%TZ) ok" \
+              || echo "$(date -u +%FT%TZ) ping failed (server may still be cold-starting)"
+            sleep 300
+          done
