@@ -50,8 +50,7 @@ export function Onboarding() {
           >
             You're ready
           </div>
-          <h2 style={{ margin: 0 }}>{business.name}</h2>
-          <CheckInQrCode slug={business.slug} />
+          <CheckInQrCode slug={business.slug} businessName={business.name} />
           <p className="text-muted" style={{ margin: 0, maxWidth: 280 }}>
             Print this and tape it by the till.
             <br />

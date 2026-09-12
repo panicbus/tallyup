@@ -2,7 +2,18 @@ services:
   - type: web
     name: tallyup-api
     runtime: node
-    plan: free
+    # Bumped from `free`: the free plan's 15-minute spin-down was causing
+    # 20-30s+ cold-start delays for real customers (the GitHub Actions
+    # keep-alive workaround in .github/workflows/keep-api-awake.yml helps
+    # but can't fully guarantee it — GitHub's own scheduler isn't reliable
+    # enough to depend on for this). Setting this in source doesn't charge
+    # anything by itself: Render's Blueprint sync applies non-billing
+    # changes automatically on push, but a plan upgrade needs a payment
+    # method on the account and (per Render's own Blueprint behavior)
+    # explicit approval in the dashboard before it actually takes effect —
+    # check the dashboard after this deploys to confirm it's sitting as a
+    # pending change rather than assuming it applied silently.
+    plan: starter
     buildCommand: npm install
     startCommand: npm run start -w @tallyup/api
     healthCheckPath: /health

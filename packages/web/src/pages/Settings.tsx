@@ -324,7 +324,7 @@ export function Settings() {
             <button type="button" className="modal-close" aria-label="Close" onClick={() => setQrOpen(false)}>
               <X size={18} />
             </button>
-            <CheckInQrCode slug={me.business.slug} size={208} />
+            <CheckInQrCode slug={me.business.slug} businessName={me.business.name} size={208} />
           </div>
         </div>
       )}

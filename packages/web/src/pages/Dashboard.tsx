@@ -226,7 +226,7 @@ export function Dashboard() {
                 No check-ins yet. Print your QR code and put it where customers can see it, by the register or on the
                 counter.
               </p>
-              <CheckInQrCode slug={slug} size={150} />
+              <CheckInQrCode slug={slug} businessName={me.business.name} size={150} />
             </div>
           ) : (
             <div
